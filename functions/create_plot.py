@@ -42,10 +42,10 @@ async def create_figure(data):
                 labels.append("81-710")
             elif i == 13:
                 time.append(data[i])
-                labels.append("717 МВМ")
+                labels.append("МВМ")
             elif i == 14:
                 time.append(data[i])
-                labels.append("717 СПБ")
+                labels.append("СПБ")
             elif i == 15:
                 time.append(data[i])
                 labels.append("81-718")
@@ -71,15 +71,19 @@ async def create_figure(data):
     if all_time == 0:
         return [], []
 
-    labels = [f"{v / all_time:.1%} - {n}" for n, v in zip(labels, time)]
+    labels = ["{} - {}".format(f"0{v / all_time:.2%}" if (v / all_time) * 100 < 9.99 else f"{v / all_time:.2%}", n)
+              for n, v in zip(labels, time)]
 
     time.sort(reverse=True)
+    time = [x // 60 for x in time]
     labels.sort(reverse=True)
 
-    plt.rc('xtick', labelsize=6)
+    plt.rc('xtick', labelsize=8)
+    plt.rc('ytick', labelsize=8)
+    plt.rc('figure', figsize=(13, 5))
 
     plt.bar(labels, time, width=0.5)
-    plt.ylabel("Время (сек.)")
+    plt.ylabel("Время (мин.)")
 
     plt.savefig('statistics.png')
 

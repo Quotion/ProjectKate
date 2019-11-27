@@ -34,7 +34,7 @@ class Katherine(discord.Client):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
-        # self.client.add_cog(Invests(client))
+        self.client.add_cog(Invests(client))
 
     def on_ready(self):
 

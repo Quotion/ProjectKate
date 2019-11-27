@@ -15,7 +15,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
         self.client = client
 
         logger = logging.getLogger("add_channels")
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.INFO)
         self.logger = logger
 
         self.pgsql = PgSQLConnection()
