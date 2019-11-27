@@ -75,8 +75,13 @@ async def create_figure(data):
               for n, v in zip(labels, time)]
 
     time.sort(reverse=True)
-    time = [x // 60 for x in time]
     labels.sort(reverse=True)
+
+    for i in range(0, len(time)):
+        print(time[i])
+        text.append(f'{labels[i]}: {datetime.datetime.fromtimestamp(time[i]).strftime("%H:%M:%S")}')
+
+    time = [x // 60 for x in time]
 
     plt.rc('xtick', labelsize=8)
     plt.rc('ytick', labelsize=8)
@@ -88,9 +93,6 @@ async def create_figure(data):
     plt.savefig('statistics.png')
 
     plt.close()
-
-    for i in range(0, len(time)):
-        text.append(f'{labels[i]}: {datetime.datetime.fromtimestamp(time[i]).strftime("%H:%M:%S")}')
 
     all_time = str(datetime.datetime.fromtimestamp(all_time).strftime("%H:%M:%S"))
 
