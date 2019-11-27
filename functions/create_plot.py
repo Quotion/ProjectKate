@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import numpy as np
 import datetime
 
 
@@ -43,10 +42,10 @@ async def create_figure(data):
                 labels.append("81-710")
             elif i == 13:
                 time.append(data[i])
-                labels.append("81-717")
+                labels.append("717 МВМ")
             elif i == 14:
                 time.append(data[i])
-                labels.append("81-717")
+                labels.append("717 СПБ")
             elif i == 15:
                 time.append(data[i])
                 labels.append("81-718")

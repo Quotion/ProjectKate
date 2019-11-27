@@ -87,14 +87,6 @@ class PgSQLConnection(object):
             self.logger.info("Connection PostgreSQL successfully establishment.")
             user = conn.cursor()
 
-            # user.execute("DELETE FROM users WHERE \"discordID\" = 521299413352841236")
-            # conn.commit()
-
-            if self._show_tables(user):
-                conn.rollback()
-                user.execute("CREATE TABLE info (guild_id BIGINT NOT NULL PRIMARY KEY, info JSON NOT NULL)")
-                conn.commit()
-
             return conn, user
 
         except psycopg2.extensions as error:

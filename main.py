@@ -1,11 +1,11 @@
 from functions.database import PgSQLConnection
 from discord.ext.commands import Bot
-from discord.ext import commands
 from language.treatment_ru import *
 from modueles.status import Status
 from modueles.addchannels import AddChannels
 from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
+from modueles.invests import Invests
 import discord
 import logging
 import json
@@ -34,6 +34,7 @@ class Katherine(discord.Client):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
+        # self.client.add_cog(Invests(client))
 
     def on_ready(self):
 
