@@ -1,0 +1,329 @@
+import datetime
+import logging
+import os
+import random
+
+import discord
+from discord.ext import commands
+
+import functions.database
+import functions.helper
+from functions.create_plot import create_figure
+from language.treatment_ru import *
+
+
+class MainCommands(commands.Cog, name="Основные команды"):
+
+    def __init__(self, client):
+        self.client = client
+
+        logger = logging.getLogger("main_commands")
+        logger.setLevel(logging.INFO)
+
+        self.logger = logger
+
+        self.mysql = functions.database.MySQLConnection()
+        self.pgsql = functions.database.PgSQLConnection()
+
+    async def profile_exist(self, ctx):
+        conn, user = self.pgsql.connect()
+        try:
+            user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.author.id])
+            var = user.fetchall()[0]
+            self.pgsql.close_conn(conn, user)
+            return False
+        except IndexError as error:
+            self.logger.error(error)
+
+            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+
+            try:
+                user.execute(
+                    'INSERT INTO users ("discordID", rating, revers, goldrevers, "chanceRol", "dateRol", '
+                    '"revBank", "goldBank", nick) VALUES( %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                    (ctx.author.id, 0, 0, 0, 1, now.day, 0, 0, ctx.author.name))
+                conn.commit()
+                await ctx.channel.send(profile_create.format(ctx.author.mention))
+                self.logger.info("Profile of {} successfully created.".format(ctx.author.name))
+            except Exception as error:
+                await ctx.channel.send(something_went_wrong)
+                self.logger.info(error)
+
+            self.pgsql.close_conn(conn, user)
+            return True
+
+    @commands.command(name='профиль', help="выводит полную информацию о Вас")
+    async def profile(self, ctx):
+        if await MainCommands.profile_exist(self, ctx):
+            return
+
+        conn, user = self.pgsql.connect()
+        data = None
+
+        if len(ctx.message.content.split()) == 2 and len(ctx.message.mentions) == 1:
+            user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.message.mentions[0].id])
+            user_ctx = self.client.get_user(ctx.message.mentions[0].id)
+        elif len(ctx.message.content.split()) == 1:
+            user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.author.id])
+            user_ctx = ctx.author
+        else:
+            ctx.channel.send(something_went_wrong)
+            return
+        try:
+            data = user.fetchall()[0]
+        except IndexError as error:
+            self.logger.error(error)
+        try:
+            if data[10] and data[10] != "None":
+                conn_mysql, user_mysql = self.mysql.connect()
+                user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[10]))
+                steam = user_mysql.fetchall()[0]
+
+                all_data = dict(rating=data[1], revers=data[2], gold_revers=data[3], steamid=data[10], nick=steam[1],
+                                rank=steam[2])
+
+                self.mysql.close_conn(conn_mysql, user_mysql)
+            else:
+                print(True)
+                all_data = dict(rating=data[1], revers=data[2], gold_revers=data[3], steamid='Не синхронизирован',
+                                nick='Не синхронизирован', rank='Не синхронизирован')
+                print(True)
+
+            await ctx.channel.send(embed=await functions.embeds.profile(all_data,
+                                                                        name=user_ctx.name,
+                                                                        icon_url=ctx.guild.icon_url,
+                                                                        avatar_url=user_ctx.avatar_url,
+                                                                        mention=user_ctx.mention,
+                                                                        guild_name=ctx.guild.name))
+        except TypeError as error:
+            self.logger.error(error)
+
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @commands.command(name='удали', help="удаляет опр. количество сообщений (только для админов)")
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    async def delete(self, ctx):
+        conn, user = self.pgsql.connect()
+        guild_id = ctx.guild.id
+        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
+        info = user.fetchone()[0]
+
+        msg = ctx.message.content.split()
+        if not msg[1].isdigit():
+            await ctx.channel.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            self.logger.info("{} entered not a number.".format(ctx.author.name))
+            return
+
+        await ctx.channel.purge(limit=int(msg[1]) + 1)
+        if info['logging']:
+            channel = self.client.get_channel(info['logging'])
+            await channel.send(embed=await functions.embeds.purge(ctx, int(msg[1])))
+
+    @commands.command(name='рулетка', help="рандомно даёт приз один раз в сутки")
+    async def roulette(self, ctx):
+        if await MainCommands.profile_exist(self, ctx):
+            return
+
+        conn, user = self.pgsql.connect()
+
+        user.execute('SELECT "dateRol" FROM users WHERE "discordID" = {}'.format(ctx.author.id))
+        date = user.fetchone()[0]
+
+        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+        if date == now.day:
+            await ctx.send("Рултека на сегодня для Вас, {}, оконечна!".format(ctx.author.mention))
+            return
+
+        user.execute('UPDATE users SET "dateRol" = {} WHERE "discordID" = {}'.format(now.day, ctx.author.id))
+        conn.commit()
+
+        win, thing = await functions.helper.random_win()
+
+        if thing == 0:
+            user.execute('UPDATE users SET revers = revers + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
+            conn.commit()
+            await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "реверсивок"))
+        elif thing == 1:
+            user.execute('UPDATE users SET goldrevers = goldrevers + {} WHERE "discordID" = {}'.
+                         format(win, ctx.author.id))
+            conn.commit()
+            await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "золотых реверсивок"))
+        else:
+            user.execute('UPDATE users SET rating = rating + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
+            conn.commit()
+            await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "ретинга"))
+
+        self.pgsql.close_conn(conn, user)
+
+    @commands.command(name='топ', help="вывод топ всех людей по реверсивкам")
+    async def top(self, ctx):
+        conn, user = self.pgsql.connect()
+
+        try:
+            user.execute('SELECT "discordID", revers FROM users ORDER BY revers DESC LIMIT 5')
+            users = user.fetchall()
+            title = discord.Embed(
+                colour=discord.Colour.greyple()
+            )
+            i = 0
+            title.set_author(name='Топ пользователей по реверсивкам.')
+            for ply in users:
+                title.add_field(name=f'{i + 1} место: ',
+                                value=f'**{self.client.get_user(int(ply[0])).name}**: '
+                                f'__{int(ply[1])}__ реверсивок',
+                                inline=False)
+                i += 1
+            await ctx.channel.send(embed=title)
+        except Exception as error:
+            await ctx.channel.send('Я не могу вывести топ по обычным реверсивкам!')
+            self.logger.error(error)
+        try:
+            user.execute('SELECT "discordID\", goldrevers FROM users ORDER BY goldrevers DESC LIMIT 5')
+            users = user.fetchall()
+            title = discord.Embed(
+                colour=discord.Colour.gold()
+            )
+            i = 0
+            title.set_author(name='Топ пользователей по золотым реверсивкам.')
+            for ply in users:
+                title.add_field(name=f'{i + 1} место: ',
+                                value=f'**{self.client.get_user(int(ply[0])).name}**: '
+                                f'__{int(ply[1])}__ золотых реверсивок',
+                                inline=False)
+                i += 1
+            await ctx.channel.send(embed=title)
+        except Exception as error:
+            await ctx.channel.send('Я не могу вывести топ по золотым реверсивкам!')
+            self.logger.error(error)
+
+        self.pgsql.close_conn(conn, user)
+
+    @commands.command(name='продать', help="продаёт рейтинг в соотношении 1:1000")
+    async def sale(self, ctx):
+        if await MainCommands.profile_exist(self, ctx):
+            return
+
+        msg = ctx.message.content.split()
+
+        if len(msg) < 2:
+            await ctx.channel.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
+            self.logger.info("{} entered one word.".format(ctx.author.name))
+            return
+
+        if not msg[1].isdigit():
+            await ctx.channel.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            self.logger.info("{} entered not a number.".format(ctx.author.name))
+            return
+
+        conn, user = self.pgsql.connect()
+
+        user.execute('SELECT rating FROM users WHERE "discordID" = {}'.format(ctx.author.id))
+        rating = int(user.fetchone()[0])
+        msg[1] = int(msg[1])
+
+        if rating < msg[1]:
+            await ctx.channel.send(more_than_have.format(ctx.author.mention, "рейтинга"))
+            self.logger.info("{} entered a number more than have rating.")
+            self.pgsql.close_conn(conn, user)
+            return
+
+        user.execute('UPDATE users SET rating = rating - {}, revers = revers + {} WHERE "discordID" = {}'.
+                     format(msg[1], msg[1] * 1000, ctx.author.id))
+        conn.commit()
+
+        await ctx.channel.send(rating_sale.format(ctx.author.mention, msg[1] * 1000, "реверсивок", 1000))
+
+        self.pgsql.close_conn(conn, user)
+
+    @commands.command(name='обмен', help="меняет обычные реверсивки на золотые")
+    async def swap(self, ctx):
+        if await MainCommands.profile_exist(self, ctx):
+            return
+
+        msg = ctx.message.content.split()
+        if len(msg) < 2:
+            await ctx.channel.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
+            self.logger.info("{} entered one word.".format(ctx.author.name))
+            return
+
+        if not msg[1].isdigit():
+            await ctx.channel.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            self.logger.info("{} entered not a number.".format(ctx.author.name))
+            return
+
+        conn, user = self.pgsql.connect()
+
+        user.execute('SELECT revers FROM users WHERE "discordID" = {}'.format(ctx.author.id))
+        revers = int(user.fetchone()[0])
+        msg[1] = int(msg[1])
+
+        if revers < msg[1]:
+            await ctx.channel.send(more_than_have.format(ctx.author.mention, "реверсивок"))
+            self.logger.info("{} entered a number more than have rating.")
+            self.pgsql.close_conn(conn, user)
+            return
+
+        user.execute('UPDATE users SET revers = revers - {} WHERE "discordID" = {}'.
+                     format(int(msg[1]), ctx.author.id))
+        conn.commit()
+
+        user.execute('UPDATE users SET goldrevers = goldrevers + {} WHERE "discordID" = {}'.
+                     format(int(msg[1] / 4), ctx.author.id))
+        conn.commit()
+
+        await ctx.channel.send(embed=await functions.embeds.swap(ctx, int(msg[1] / 4), msg[1], swaps))
+
+    @commands.command(name="статистика", help="основная команда для статистики")
+    async def static(self, ctx):
+        conn, user = self.pgsql.connect()
+        database, gamer = self.mysql.connect()
+        user.execute("SELECT steamid FROM users WHERE \"discordID\" = %s", [ctx.author.id])
+
+        steamid = None
+
+        try:
+            steamid = user.fetchone()[0]
+        except IndexError as error:
+            self.logger.error(error)
+            await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+
+        if steamid != "None" and steamid:
+            gamer.execute("SELECT * FROM users_steam WHERE steamid = %s", [steamid])
+            data = gamer.fetchall()[0]
+
+            labels, all_time = await create_figure(data)
+
+            if not labels:
+                await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, for_statistics))
+                return
+
+            image = open("statistics.png", 'rb')
+            await ctx.channel.send(f"{ctx.author.mention}, вы провели за пултом {all_time}"
+                                   f"\nВот список составов, в которых вы находились:\n```" +
+                                   '\n'.join([x for x in labels]) + "```"
+                                   "\nГрафик ниже предоставит вам дополнительную информацию:",
+                                   file=discord.File(fp=image, filename="statistics.png"))
+            image.close()
+        else:
+            await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+        try:
+            os.remove("statistics.png")
+        except PermissionError as error:
+            self.logger.error(error)
+
+    @commands.command(name="серв_инфо", help="выводит информацию о сервере")
+    async def server_info(self, ctx):
+        embed = await functions.embeds.server_info(ctx.guild)
+        await ctx.channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_command_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.channel.send(missing_permission.format(ctx.author.mention))
+            self.logger.error(error)
+        elif isinstance(error, commands.CommandNotFound):
+            await ctx.channel.send(command_not_found.format(ctx.author.mention, ctx.message.content))
+        else:
+            self.logger.error(error)
