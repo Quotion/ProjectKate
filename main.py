@@ -177,8 +177,11 @@ class Katherine(discord.Client):
             info = user.fetchone()[0]
 
             guild = self.client.get_guild(guild_id)
-            audit_logs = await guild.audit_logs(limit=1).flatten()
-            user_info = [info.user for info in audit_logs]
+            try:
+                audit_logs = await guild.audit_logs(limit=1).flatten()
+                user_info = [info.user for info in audit_logs]
+            except AttributeError as error:
+                logger.error(error)
 
             if info['logging'] != 0:
                 channel_log = self.client.get_channel(info['logging'])
