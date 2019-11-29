@@ -97,18 +97,18 @@ async def delete_message(message):
     return embed
 
 
-async def raw_delete_message(payload, channel):
+async def raw_delete_message(user, channel, id):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {channel.guild.name} было удаленно сообщение, "
-                          f"отправленное в канале {channel.name}.",
+    embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {channel.guild.name} было удаленно сообщение "
+                          f"в канале {channel.name}.",
                      icon_url=channel.guild.icon_url)
-    embed.add_field(name='Так как сообщение удаленно вне кэша (т.е. оно очень старое), то доступно лишь его ID:',
-                    value= str(payload.message_id),
-                    inline=False)
+    embed.description = "Удалил: {}\n" \
+                        "ID пользователя: `{}`\n" \
+                        "ID сообщения: `{}`".format(user[0].mention, user[0].id, id)
     embed.set_thumbnail(url='https://www.pngarts.com/files/1/X-Shape-Free-PNG-Image.png')
-    embed.set_footer(text=f"{channel.guild.name} | {channel.name} | {now.strftime('%d.%m.%Y')}")
+    embed.set_footer(text=f"{channel.guild.name} | {channel.name} | {now.strftime('%d.%m.%Y | %H:%M')}")
     return embed
 
 
@@ -227,7 +227,7 @@ async def discord_check_ban(ban, player):
 
 
 async def server_info(guild):
-    time = datetime.datetime.strptime(str(guild.created_at), "%Y-%m-%d %H:%M:%S.%f")
+    time_date = datetime.datetime.strptime(str(guild.created_at), "%Y-%m-%d %H:%M:%S.%f")
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Информация по серверу {0.name}".format(guild))
@@ -237,8 +237,17 @@ async def server_info(guild):
     embed.add_field(name="Количество участиков: ", value=guild.member_count)
     embed.add_field(name="Уровень верификации: ", value=guild.verification_level)
     embed.add_field(name="Роль по умолчанию: ", value=guild.default_role)
-    embed.add_field(name="Дата создание", value=time.strftime("%d.%m.%Y %H:%M:%S"))
+    embed.add_field(name="Дата создание", value=time_date.strftime("%d.%m.%Y %H:%M:%S"))
     embed.add_field(name="Лимит emoji: ", value=guild.emoji_limit)
     embed.add_field(name="Лимит участников: ", value="Безлимитно" if not guild.max_members else guild.max_members)
     embed.set_thumbnail(url=guild.icon_url)
     return embed
+
+
+async def bank_info(ctx, all_amount_off_money):
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name="Информация по Тратбанку")
+    embed.add_field(name="Директор банка: ", value=ctx.guild.owner.mention)
+    embed.add_field(name="Нынешнее состояние: ", value=f"{all_amount_off_money}₽")
+    embed.add_field(name="Курс: ", value="0")
+    embed.set_footer(text=f"")

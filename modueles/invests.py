@@ -1,5 +1,6 @@
 import logging
 from discord.ext import commands
+from functions.embeds import *
 from language.treatment_ru import *
 from functions.database import PgSQLConnection
 from functions.database import MySQLConnection
@@ -22,10 +23,10 @@ class Invests(commands.Cog, name="Инвистиции"):
         conn, user = None, None
         try:
             conn, user = self.pgsql.connect()
-
             user.execute("INSERT INTO bank (discordID) VALUES ({})".format(ctx.author.id))
             conn.commit()
         except Exception as error:
+            await ctx.send(embed=await description(ctx.author.mention, account_exist))
             self.logger.error(error)
         else:
             user.execute("SELECT accountID FROM bank WHERE discordID = {}".format(ctx.author.id))
@@ -35,22 +36,36 @@ class Invests(commands.Cog, name="Инвистиции"):
 
     @commands.command(name="банк", help="показывает ваше состояние")
     async def bank(self, ctx):
-        pass
+        conn, user = None, None
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT amount FROM bank")
+            amount = user.fetchall()[0]
+            all_amount_off_money = None
+            for i in amount:
+                all_amount_off_money += i
+
+            await ctx.send(embed=await bank_info(ctx, all_amount_off_money))
+
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
 
     @commands.command(name="закрыть_счёт", help="закрывает и удаляет счет в банке")
     async def close_bill(self, ctx):
         pass
 
     @commands.command(name="положить", help="кладет на счет в банке")
-    async def put_in_bank(self, ctx):
+    async def put_in_bank(self, ctx, *, amount: str):
         pass
 
     @commands.command(name="снять", help="возвращает вам деньги со счёта")
-    async def get_from_bank(self, ctx):
+    async def get_from_bank(self, ctx, *, amount: str):
         pass
 
     @commands.command(name="вложить", help="кладет на счет в банке")
-    async def invest(self, ctx):
+    async def invest(self, ctx, *, amount: str):
         pass
 
     @commands.command(name="курс", help="кладет на счет в банке")

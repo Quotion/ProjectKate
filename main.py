@@ -34,7 +34,7 @@ class Katherine(discord.Client):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
-        self.client.add_cog(Invests(client))
+        # self.client.add_cog(Invests(client))
 
     def on_ready(self):
 
@@ -176,11 +176,16 @@ class Katherine(discord.Client):
             user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
             info = user.fetchone()[0]
 
+            guild = self.client.get_guild(guild_id)
+            audit_logs = await guild.audit_logs(limit=1).flatten()
+            user_info = [info.user for info in audit_logs]
+
             if info['logging'] != 0:
                 channel_log = self.client.get_channel(info['logging'])
                 channel = self.client.get_channel(payload.channel_id)
 
-                await channel_log.send(embed=await functions.embeds.raw_delete_message(payload, channel))
+                await channel_log.send(embed=await functions.embeds.raw_delete_message(user_info, channel,
+                                                                                       payload.message_id))
                 logger.info("Message was raw delete.")
 
             self.pgsql.close_conn(conn, user)
@@ -199,7 +204,7 @@ class Katherine(discord.Client):
                 if channel.id == info['status']['channel']:
                     return
 
-            if message.content == "" or payload.cached_message:
+            if payload.cached_message:
                 logger.info("Message not exist.")
                 return
 
