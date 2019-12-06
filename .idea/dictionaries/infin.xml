@@ -2,6 +2,7 @@
   <dictionary name="infin">
     <words>
       <w>pgsql</w>
+      <w>steamid</w>
     </words>
   </dictionary>
 </component>

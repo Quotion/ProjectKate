@@ -87,9 +87,15 @@ class PgSQLConnection(object):
             self.logger.info("Connection PostgreSQL successfully establishment.")
             user = conn.cursor()
 
+            # try:
+            #     user.execute("ALTER TABLE users RENAME COLUMN goldRevers TO goldMoney")
+            #     conn.commit()
+            # except Exception as error:
+            #     self.logger.error(error)
+
             return conn, user
 
-        except psycopg2.extensions as error:
+        except Exception as error:
             self.logger.error(error)
 
     def close_conn(self, conn, user):

@@ -39,9 +39,9 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
             try:
                 user.execute(
-                    'INSERT INTO users ("discordID", rating, revers, goldrevers, "chanceRol", "dateRol", '
-                    '"revBank", "goldBank", nick) VALUES( %s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                    (ctx.author.id, 0, 0, 0, 1, now.day, 0, 0, ctx.author.name))
+                    'INSERT INTO users ("discordID", rating, money, goldMoney, "chanceRol", "dateRol", nick) '
+                    'VALUES(%s, %s, %s, %s, %s, %s, %s)',
+                    (ctx.author.id, 0, 0, 0, 1, now.day, ctx.author.name))
                 conn.commit()
                 await ctx.channel.send(profile_create.format(ctx.author.mention))
                 self.logger.info("Profile of {} successfully created.".format(ctx.author.name))
@@ -74,18 +74,18 @@ class MainCommands(commands.Cog, name="Основные команды"):
         except IndexError as error:
             self.logger.error(error)
         try:
-            if data[10] and data[10] != "None":
+            if data[7] and data[7] != "None":
                 conn_mysql, user_mysql = self.mysql.connect()
-                user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[10]))
+                user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[7]))
                 steam = user_mysql.fetchall()[0]
 
-                all_data = dict(rating=data[1], revers=data[2], gold_revers=data[3], steamid=data[10], nick=steam[1],
+                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1],
                                 rank=steam[2])
 
                 self.mysql.close_conn(conn_mysql, user_mysql)
             else:
                 print(True)
-                all_data = dict(rating=data[1], revers=data[2], gold_revers=data[3], steamid='Не синхронизирован',
+                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid='Не синхронизирован',
                                 nick='Не синхронизирован', rank='Не синхронизирован')
                 print(True)
 
@@ -142,11 +142,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
         win, thing = await functions.helper.random_win()
 
         if thing == 0:
-            user.execute('UPDATE users SET revers = revers + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
+            user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
             conn.commit()
             await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "реверсивок"))
         elif thing == 1:
-            user.execute('UPDATE users SET goldrevers = goldrevers + {} WHERE "discordID" = {}'.
+            user.execute('UPDATE users SET goldMoney = goldMoney + {} WHERE "discordID" = {}'.
                          format(win, ctx.author.id))
             conn.commit()
             await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "золотых реверсивок"))
@@ -162,7 +162,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         conn, user = self.pgsql.connect()
 
         try:
-            user.execute('SELECT "discordID", revers FROM users ORDER BY revers DESC LIMIT 5')
+            user.execute('SELECT "discordID", money FROM users ORDER BY money DESC LIMIT 5')
             users = user.fetchall()
             title = discord.Embed(
                 colour=discord.Colour.greyple()
@@ -180,7 +180,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.channel.send('Я не могу вывести топ по обычным реверсивкам!')
             self.logger.error(error)
         try:
-            user.execute('SELECT "discordID\", goldrevers FROM users ORDER BY goldrevers DESC LIMIT 5')
+            user.execute('SELECT "discordID\", goldMoney FROM users ORDER BY goldMoney DESC LIMIT 5')
             users = user.fetchall()
             title = discord.Embed(
                 colour=discord.Colour.gold()
@@ -223,13 +223,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
         rating = int(user.fetchone()[0])
         msg[1] = int(msg[1])
 
-        if rating < msg[1]:
-            await ctx.channel.send(more_than_have.format(ctx.author.mention, "рейтинга"))
+        if rating < msg[1] or rating <= 0:
+            await ctx.channel.send(not_correct.format(ctx.author.mention, "рейтинга"))
             self.logger.info("{} entered a number more than have rating.")
             self.pgsql.close_conn(conn, user)
             return
 
-        user.execute('UPDATE users SET rating = rating - {}, revers = revers + {} WHERE "discordID" = {}'.
+        user.execute('UPDATE users SET rating = rating - {}, money = money + {} WHERE "discordID" = {}'.
                      format(msg[1], msg[1] * 1000, ctx.author.id))
         conn.commit()
 
@@ -255,7 +255,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         conn, user = self.pgsql.connect()
 
-        user.execute('SELECT revers FROM users WHERE "discordID" = {}'.format(ctx.author.id))
+        user.execute('SELECT money FROM users WHERE "discordID" = {}'.format(ctx.author.id))
         revers = int(user.fetchone()[0])
         msg[1] = int(msg[1])
 
@@ -265,11 +265,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
             return
 
-        user.execute('UPDATE users SET revers = revers - {} WHERE "discordID" = {}'.
+        user.execute('UPDATE users SET money = money - {} WHERE "discordID" = {}'.
                      format(int(msg[1]), ctx.author.id))
         conn.commit()
 
-        user.execute('UPDATE users SET goldrevers = goldrevers + {} WHERE "discordID" = {}'.
+        user.execute('UPDATE users SET goldMoney = goldMoney + {} WHERE "discordID" = {}'.
                      format(int(msg[1] / 4), ctx.author.id))
         conn.commit()
 

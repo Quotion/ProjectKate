@@ -34,7 +34,7 @@ class Katherine(discord.Client):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
-        # self.client.add_cog(Invests(client))
+        self.client.add_cog(Invests(client))
 
     def on_ready(self):
 
@@ -54,7 +54,14 @@ class Katherine(discord.Client):
             info = user.fetchone()
             if not info:
                 information = {'main': 0, 'news': 0, 'logging': 0}
-                user.execute("INSERT INTO info VALUES (%s, %s)", (guild.id, json.dumps(information),))
+                user.execute("INSERT INTO info (info) VALUES (%s, %s)", (guild.id, json.dumps(information),))
+                conn.commit()
+
+            user.execute("SELECT info FROM bank_info WHERE guild_id = %s", [guild.id])
+            bank_info = user.fetchone()
+            if not bank_info:
+                information = {'name': 0, 'course': 0, 'date_course': 0}
+                user.execute("INSERT INTO info (bank_info) VALUES (%s, %s)", (guild.id, json.dumps(information),))
                 conn.commit()
 
             logger.info('Someone added {} to guild "{}"'.format(self.client.user.name, guild.name))

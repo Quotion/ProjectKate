@@ -73,8 +73,8 @@ async def profile(all_data, **kwargs):
     embed.set_author(name=f"Профиль игрока {kwargs['name']}", icon_url=kwargs["icon_url"])
     embed.set_thumbnail(url=kwargs["avatar_url"])
     embed.add_field(name='Дискорд:', value=kwargs["mention"])
-    embed.add_field(name='Реверсивки:', value=str(all_data['revers']))
-    embed.add_field(name='Золотые реверсивки:', value=str(all_data['gold_revers']))
+    embed.add_field(name='Реверсивки:', value=str(all_data['money']))
+    embed.add_field(name='Золотые реверсивки:', value=str(all_data['gold_money']))
     embed.add_field(name='Рейтинг:', value=str(all_data['rating']))
     embed.add_field(name='Ваш SteamID:', value=str(all_data['steamid']), inline=False)
     embed.add_field(name='Ник:', value=str(all_data['nick']))
@@ -244,10 +244,52 @@ async def server_info(guild):
     return embed
 
 
-async def bank_info(ctx, all_amount_off_money):
+async def invest_help(ctx):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name="Информация по Тратбанку")
+    embed.set_author(name="Некоторая информация о инвистициях и банке.",
+                     icon_url=ctx.guild.icon_url)
+    embed.add_field(name="Основная информация",
+                    value="⠀⠀⠀⠀На каждом сервере, где есть бот, существует свой банк у которого есть свой курс и "
+                          "название. Чтобы узнать курс или информацию о банке, можно воспользоваться командами к!курс "
+                          "и к!банк соответсвенно.\n"
+                          "⠀⠀⠀⠀Также на сервере существует своя валюта: <имя валюты> и зл. <имя валюты>. Первая "
+                          "обычная, которую можно положить в банк, согласно курсу (обычно 1 ВС (валюта сервера) = "
+                          "курсу банка), вторая, с приставкой \"зл.\", т.е. золотая, за которую админы могут продовать "
+                          "роли на сервере. Также их можно кастомизировать, изменяя названия.\n"
+                          "⠀⠀⠀⠀P.S. за курс взято отношение криптовалюты NEO к доллару",
+                    inline=False)
+    embed.add_field(name="Счёт в банке",
+                    value="⠀⠀⠀⠀Само собой хранить деньги в воздухе - это не лучшая идея, поэтому в банке существует "
+                          "счёт, который вам сначало нужно открыть, воспользовавшись командой к!открыть_счёт "
+                          "(с буквой ё). Как только вы её ввели, поздравляю, счёт открыть. Дальше, можно совершать "
+                          "операции с ним. Т.к. перевод денег возможен только с счёта на счёт, то вы можете "
+                          "предоставить вашему другу номер своего счёта (номер счёта - это ваш discord id), на который "
+                          "он может перевести деньги, если требуется.\n"
+                          "⠀⠀⠀⠀Раз счёт можно отркыть, следственно закрыть его тоже возможно. НО закрывая счёт вы "
+                          "теряете все свои деньги.\n"
+                          "⠀⠀⠀⠀\"Зачем закрывать счёт?\" - спросите вы, а я отвечу: \"Не знаю.\"",
+                    inline=False)
+    embed.add_field(name="Инвистиции",
+                    value="⠀⠀⠀⠀Наконец, подошли к самому главному, это инвистиции. Итак, для начало, нужно выбрать "
+                          "куда вкладывать, иначе, смысла в получении прибыли нет. При вводе команды к!ивест_статус, "
+                          "вам выводится состояние компаний и некоторая дополнительная информация, которая может "
+                          "подсказать вам, куда лучше всего направить свой капитал. Далее вы просто вводите "
+                          "команду к!вложить <номер компании/предприятия> и ждать ответного сообщения от бота. Если "
+                          "вы всё сделали правильно, то прибыл не заставит себя долго ждать. НО учите, также что вы "
+                          "можете всё поетрять.",
+                    inline=False)
+    embed.description = f"При появлении проблем, писать -> Rise#3047"
+    embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    return embed
+
+
+async def bank_info(ctx, all_amount, course):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name="Информация по \"ОАО Постирония Банк\"")
     embed.add_field(name="Директор банка: ", value=ctx.guild.owner.mention)
-    embed.add_field(name="Нынешнее состояние: ", value=f"{all_amount_off_money}₽")
-    embed.add_field(name="Курс: ", value="0")
-    embed.set_footer(text=f"")
+    embed.add_field(name="Нынешнее состояние: ", value=f"{all_amount} ₽")
+    embed.add_field(name="Курс: ", value=course)
+    embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    return embed
