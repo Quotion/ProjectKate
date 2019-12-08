@@ -33,7 +33,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.pgsql.close_conn(conn, user)
         return ids
 
-    @commands.command(name='бан', help="банит игрока (только для админов)")
+    @commands.command(name='бан', help="банит игрока")
     @commands.has_permissions(administrator=True)
     async def ban(self, ctx):
         message = ctx.message.content.split()
@@ -161,7 +161,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.pgsql.close_conn(conn, user)
         self.mysql.close_conn(database, gamer)
 
-    @commands.command(name='разбан', help="разбанивает игрока (только для админов)")
+    @commands.command(name='разбан', help="разбанивает игрока")
     @commands.has_permissions(administrator=True)
     async def unban(self, ctx):
 

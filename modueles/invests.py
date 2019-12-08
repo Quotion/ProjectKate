@@ -1,5 +1,5 @@
 import logging
-import random as rd
+import json
 import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
@@ -17,20 +17,19 @@ class Invests(commands.Cog, name="Инвистиции"):
         self.pgsql = PgSQLConnection()
         self.mysql = MySQLConnection()
 
-        self.timer = 3600
-        self.time = 0
         self.url = "https://www.rbc.ru/crypto/currency/neousd"
 
         logger = logging.getLogger("invests")
         logger.setLevel(logging.INFO)
         self.logger = logger
 
-    async def __check_course__(self):
+    def __check_course__(self):
         self.time = int(time.time())
 
         soup = BeautifulSoup(requests.get(self.url).text, features="lxml")
+
         table = soup.find("div", {"class": "chart__subtitle js-chart-value"})
-        course = float(table.text[12:17].replace(' ', '').replace(',', '.'))
+        course = float(table.text[10:17].replace(' ', '').replace(',', '.'))
 
         return course
 
@@ -38,13 +37,65 @@ class Invests(commands.Cog, name="Инвистиции"):
     async def invest_help(self, ctx):
         await ctx.send(embed=await invest_help(ctx))
 
+    @commands.command(name="имя_банка", help="изменяет название банка")
+    @commands.has_permissions(administrator=True)
+    async def name_bank(self, ctx, *, name: str):
+        conn, user, bank = None, None, None
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            bank = user.fetchone()[0]
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+        bank['name'] = name
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute('UPDATE info SET bank_info = %s WHERE guild_id = %s', (json.dumps(bank), ctx.guild.id))
+            conn.commit()
+        except Exception as error:
+            self.logger.error(error)
+        else:
+            await ctx.send(embed=await description(name, save_name_bank))
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @commands.command(name="имя_валюты", help="изменяет название валюты")
+    @commands.has_permissions(administrator=True)
+    async def name_currency(self, ctx, *, name: str):
+        conn, user, bank = None, None, None
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            bank = user.fetchone()[0]
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+        bank['char_of_currency'] = name
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute('UPDATE info SET bank_info = %s WHERE guild_id = %s', (json.dumps(bank), ctx.guild.id))
+            conn.commit()
+        except Exception as error:
+            self.logger.error(error)
+        else:
+            await ctx.send(embed=await description(name, save_name_currency))
+        finally:
+            self.pgsql.close_conn(conn, user)
+
     @commands.command(name="открыть_счёт", help="открывает счёт в банке")
     async def open_bill(self, ctx):
         conn, user = None, None
         try:
             conn, user = self.pgsql.connect()
-            user.execute("INSERT INTO bank (discordID, guild_id) VALUES ({}, {})".
-                         format(ctx.author.id, ctx.guild.id))
+            user.execute("INSERT INTO bank VALUES ({}, {}, {}, {})".format(ctx.author.id, ctx.guild.id, 0,
+                                                                           int(time.time())))
             conn.commit()
         except Exception as error:
             await ctx.send(embed=await description(ctx.author.mention, account_exist))
@@ -54,9 +105,25 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="счёт", help="закрывает и удаляет счет в банке")
+    @commands.command(name="счёт", help="выводит информацию по счёту")
     async def bill(self, ctx):
-        pass
+        conn, user, info, bank = None, None, None, None
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT * FROM bank WHERE discordID = {}".format(ctx.author.id))
+            info = user.fetchall()[0]
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            bank = user.fetchone()[0]
+        except TypeError as error:
+            await ctx.send(account_not_exist.format(ctx.author.mention))
+            self.logger.error(error)
+        except Exception as error:
+            await ctx.send(something_went_wrong)
+            self.logger.error(error)
+        else:
+            await ctx.send(embed=await bill(ctx, info, bank))
+        finally:
+            self.pgsql.close_conn(conn, user)
 
     @commands.command(name="закрыть_счёт", help="закрывает и удаляет счет в банке")
     async def close_bill(self, ctx):
@@ -76,16 +143,27 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="банк", help="показывает ваше состояние")
+    @commands.command(name="банк", help="показывает информацию по банку")
     async def bank(self, ctx):
-        conn, user = None, None
-        course = await self.__check_course__()
+        conn, user, all_amount = None, None, .0
         try:
             conn, user = self.pgsql.connect()
-            user.execute("SELECT SUM(amount) FROM bank")
-            amount = user.fetchone()[0]
-            await ctx.send(embed=await bank_info(ctx, amount, course))
+            user.execute("SELECT SUM(amount) FROM bank WHERE guild_id = {}".format(ctx.guild.id))
+            all_amount = user.fetchone()[0]
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
 
+        try:
+
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            bank = user.fetchone()[0]
+
+            course = self.__check_course__()
+
+            await ctx.send(embed=await bank_info(ctx, all_amount, course, bank['name']))
         except Exception as error:
             self.logger.error(error)
         finally:
@@ -93,6 +171,7 @@ class Invests(commands.Cog, name="Инвистиции"):
 
     @commands.command(name="положить", help="кладет на счет в банке")
     async def put_in_bank(self, ctx, *, amount: str):
+
         if not amount.isdigit():
             await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
             return
@@ -101,10 +180,14 @@ class Invests(commands.Cog, name="Инвистиции"):
 
         try:
             conn, user = self.pgsql.connect()
-            user.execute("SELECT money FROM users WHERE discordID = {}".
-                         format(float(amount) * await self.__check_course__(), ctx.author.id))
-            await ctx.send(embed=await description(ctx.author.mention, successful_put))
+            user.execute("SELECT money FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
+            money = user.fetchone()[0]
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            info = user.fetchone()
 
+            if float(money) < float(amount):
+                await ctx.send(not_enough_money.format(ctx.author.mention, info['name_of_currency']))
+                return
         except Exception as error:
             self.logger.error(error)
         finally:
@@ -112,20 +195,59 @@ class Invests(commands.Cog, name="Инвистиции"):
 
         try:
             conn, user = self.pgsql.connect()
-            user.execute("UPDATE bank SET amount = amount + {} WHERE discordID = {}".
-                         format(float(amount) * await self.__check_course__(), ctx.author.id))
+            user.execute("UPDATE bank SET amount = amount + %s WHERE discordID = %s;"
+                         "UPDATE users SET money = money - %s WHERE \"discordID\" = %s;",
+                         ((float(amount) * self.__check_course__()), ctx.author.id, amount, ctx.author.id))
+            conn.commit()
             await ctx.send(embed=await description(ctx.author.mention, successful_put))
 
         except Exception as error:
             self.logger.error(error)
+            await ctx.send(something_went_wrong)
         finally:
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="снять", help="возвращает вам деньги со счёта")
     async def get_from_bank(self, ctx, *, amount: str):
+
+        if not amount.isdigit():
+            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            return
+
+        conn, user = None, None
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT amount FROM bank WHERE \"discordID\" = {}".format(ctx.author.id))
+            real_amount = user.fetchone()[0]
+
+            if float(real_amount) < float(amount):
+                await ctx.send(not_enough_money.format(ctx.author.mention, "NEO"))
+                return
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("UPDATE bank SET amount = amount - %s WHERE discordID = %s;"
+                         "UPDATE users SET money = money + %s WHERE \"discordID\" = %s;",
+                         (float(amount), ctx.author.id, int(float(amount) / self.__check_course__()), ctx.author.id))
+            conn.commit()
+            await ctx.send(embed=await description(ctx.author.mention, successful_get))
+
+        except Exception as error:
+            self.logger.error(error)
+            await ctx.send(something_went_wrong)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @commands.command(name="перевести", help="переводить на счёт")
+    async def get_from_bank(self, ctx, *, bill_id: str, amount: str):
         pass
 
-    @commands.command(name="ивест_статус", help="возвращает вам деньги со счёта")
+    @commands.command(name="инвест_статус", help="возвращает вам деньги со счёта")
     async def invest_status(self, ctx, *, amount: str):
         pass
 
@@ -135,7 +257,7 @@ class Invests(commands.Cog, name="Инвистиции"):
 
     @commands.command(name="курс", help="кладет на счет в банке")
     async def course(self, ctx):
-        course = await self.__check_course__()
+        course = self.__check_course__()
         embed = discord.Embed(colour=discord.Colour.default())
         embed.description = f"Нынешний курс банка: {course} ₽."
         await ctx.send(embed=embed)

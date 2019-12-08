@@ -15,15 +15,15 @@ import functions.embeds
 
 client = Bot(command_prefix='к!')
 
-logger = logging.basicConfig(format="%(levelname)s: %(funcName)s (%(lineno)d): %(name)s:%(message)s", level=logging.INFO)
+logging.basicConfig(format="%(levelname)s: %(funcName)s (%(lineno)d): %(name)s: %(message)s",
+                    level=logging.INFO)
 logger = logging.getLogger("main")
 logger.setLevel(logging.INFO)
 
 
 class Katherine(discord.Client):
-
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, user):
+        self.client = user
 
         self.pgsql = PgSQLConnection()
 
@@ -51,16 +51,16 @@ class Katherine(discord.Client):
         async def on_guild_join(guild):
             conn, user = self.pgsql.connect()
             user.execute("SELECT info FROM info WHERE guild_id = %s", [guild.id])
-            info = user.fetchone()
-            if not info:
+            info = user.fetchone()[0]
+            if not info or info == "null":
                 information = {'main': 0, 'news': 0, 'logging': 0}
                 user.execute("INSERT INTO info (info) VALUES (%s, %s)", (guild.id, json.dumps(information),))
                 conn.commit()
 
-            user.execute("SELECT info FROM bank_info WHERE guild_id = %s", [guild.id])
-            bank_info = user.fetchone()
-            if not bank_info:
-                information = {'name': 0, 'course': 0, 'date_course': 0}
+            user.execute("SELECT bank_info FROM info WHERE guild_id = %s", [guild.id])
+            bank_info = user.fetchone()[0]
+            if not bank_info or bank_info == "null":
+                information = {'name': f"\"{guild.name}\" банк", 'char_of_currency': 'ВС'}
                 user.execute("INSERT INTO info (bank_info) VALUES (%s, %s)", (guild.id, json.dumps(information),))
                 conn.commit()
 
@@ -72,27 +72,12 @@ class Katherine(discord.Client):
             await channel.send(embed=await functions.embeds.description(self.client.command_prefix, channels))
 
         @self.client.event
-        async def on_guild_remove(guild):
-            conn, user = self.pgsql.connect()
-            try:
-                user.execute("DELETE FROM info WHERE guild_id = {}".format(guild.id))
-                conn.commit()
-            except Exception as error:
-                logger.error('Impossible to delete {}. This ID not in database.'.format(guild.id))
-                logger.error(error)
-            finally:
-                logger.info('Bot removed from guild ({}) and info about this guild was delete'.format(guild.name))
-
-            self.pgsql.close_conn(conn, user)
-
-        @self.client.event
         async def on_member_join(member):
             guild_id = member.guild.id
             conn, user = self.pgsql.connect()
 
             user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
             info = user.fetchone()[0]
-            print(info)
 
             if info['logging']:
                 channel = self.client.get_channel(info['logging'])
@@ -103,6 +88,9 @@ class Katherine(discord.Client):
 
         @self.client.event
         async def on_member_remove(member):
+            if member.id == self.client.user.id:
+                return
+
             conn, user = self.pgsql.connect()
 
             guild_id = member.guild.id
@@ -121,6 +109,7 @@ class Katherine(discord.Client):
 
         @self.client.event
         async def on_message_edit(msg_before, msg_after):
+            plot = None
             if msg_after.content == msg_before.content or msg_before.author.id == self.client.user.id:
                 return
 
@@ -137,7 +126,7 @@ class Katherine(discord.Client):
                 embed = await functions.embeds.message_edit(msg_before, msg_after)
 
                 try:
-                    file = io.open("changelog.txt", "rb")
+                    plot = io.open("changelog.txt", "rb")
                     msg_changes = discord.File(file, filename="Message_changes.txt")
                     file.close()
                 except Exception as error:
@@ -145,7 +134,7 @@ class Katherine(discord.Client):
 
                 if msg_changes:
                     await channel.send(embed=embed, file=msg_changes)
-                    file.close()
+                    plot.close()
                     try:
                         os.remove("changelog.txt")
                     except Exception as error:
@@ -174,6 +163,7 @@ class Katherine(discord.Client):
 
         @self.client.event
         async def on_raw_message_delete(payload):
+            user_info = None
             if payload.cached_message:
                 logger.info("Message was delete in cache.")
                 return
@@ -233,10 +223,8 @@ class Katherine(discord.Client):
             await self.client.process_commands(message)
 
 
-main = Katherine(client)
+Katherine(client)
 
-TOKEN = ""
+
 with open("TOKEN", "r", encoding="utf8") as file:
-    TOKEN = file.read().splitlines()[0]
-
-client.run(TOKEN)
+    client.run(file.read().splitlines()[0])

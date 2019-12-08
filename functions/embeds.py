@@ -73,8 +73,8 @@ async def profile(all_data, **kwargs):
     embed.set_author(name=f"Профиль игрока {kwargs['name']}", icon_url=kwargs["icon_url"])
     embed.set_thumbnail(url=kwargs["avatar_url"])
     embed.add_field(name='Дискорд:', value=kwargs["mention"])
-    embed.add_field(name='Реверсивки:', value=str(all_data['money']))
-    embed.add_field(name='Золотые реверсивки:', value=str(all_data['gold_money']))
+    embed.add_field(name=all_data['name_of_currency'].title(), value=str(all_data['money']))
+    embed.add_field(name=f"Зол. {all_data['name_of_currency'].title()}:", value=str(all_data['gold_money']))
     embed.add_field(name='Рейтинг:', value=str(all_data['rating']))
     embed.add_field(name='Ваш SteamID:', value=str(all_data['steamid']), inline=False)
     embed.add_field(name='Ник:', value=str(all_data['nick']))
@@ -284,12 +284,23 @@ async def invest_help(ctx):
     return embed
 
 
-async def bank_info(ctx, all_amount, course):
+async def bank_info(ctx, all_amount, course, name_of_bank):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name="Информация по \"ОАО Постирония Банк\"")
-    embed.add_field(name="Директор банка: ", value=ctx.guild.owner.mention)
-    embed.add_field(name="Нынешнее состояние: ", value=f"{all_amount} ₽")
-    embed.add_field(name="Курс: ", value=course)
+    embed.set_author(name="Информация по \"{}\" банк".format(name_of_bank))
+    embed.add_field(name="Директор банка: ", value=ctx.guild.owner.mention, inline=False)
+    embed.add_field(name="Нынешнее состояние: ", value=f"{all_amount} NEO", inline=False)
+    embed.add_field(name="Курс: ", value=f"{course} NEO", inline=False)
+    embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    return embed
+
+
+async def bill(ctx, info, bank):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name="Информация по счёту №{}".format(info[0]))
+    embed.add_field(name="Нынешнее состояние: ", value=f"{str(info[2])} NEO", inline=False)
+    embed.add_field(name="Имя банка, в котором открыть счёт: ", value=bank['name'], inline=False)
+    embed.add_field(name="Дата создания счёта: ", value=str(time.ctime(int(info[3]))), inline=False)
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed

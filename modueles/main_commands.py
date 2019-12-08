@@ -1,7 +1,6 @@
 import datetime
 import logging
 import os
-import random
 
 import discord
 from discord.ext import commands
@@ -43,22 +42,25 @@ class MainCommands(commands.Cog, name="Основные команды"):
                     'VALUES(%s, %s, %s, %s, %s, %s, %s)',
                     (ctx.author.id, 0, 0, 0, 1, now.day, ctx.author.name))
                 conn.commit()
-                await ctx.channel.send(profile_create.format(ctx.author.mention))
+                await ctx.send(profile_create.format(ctx.author.mention))
                 self.logger.info("Profile of {} successfully created.".format(ctx.author.name))
             except Exception as error:
-                await ctx.channel.send(something_went_wrong)
+                await ctx.send(something_went_wrong)
                 self.logger.info(error)
 
             self.pgsql.close_conn(conn, user)
             return True
 
-    @commands.command(name='профиль', help="выводит полную информацию о Вас")
+    @commands.command(name='профиль', help="полна информация по вашему профилю")
     async def profile(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             return
 
         conn, user = self.pgsql.connect()
         data = None
+
+        user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+        name_of_currency = user.fetchone()[0]['char_of_currency']
 
         if len(ctx.message.content.split()) == 2 and len(ctx.message.mentions) == 1:
             user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.message.mentions[0].id])
@@ -67,7 +69,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.author.id])
             user_ctx = ctx.author
         else:
-            ctx.channel.send(something_went_wrong)
+            await ctx.send(something_went_wrong)
             return
         try:
             data = user.fetchall()[0]
@@ -80,28 +82,27 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 steam = user_mysql.fetchall()[0]
 
                 all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1],
-                                rank=steam[2])
+                                rank=steam[2], name_of_currency=name_of_currency)
 
                 self.mysql.close_conn(conn_mysql, user_mysql)
             else:
-                print(True)
                 all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid='Не синхронизирован',
-                                nick='Не синхронизирован', rank='Не синхронизирован')
-                print(True)
+                                nick='Не синхронизирован', rank='Не синхронизирован',
+                                name_of_currency=name_of_currency)
 
-            await ctx.channel.send(embed=await functions.embeds.profile(all_data,
-                                                                        name=user_ctx.name,
-                                                                        icon_url=ctx.guild.icon_url,
-                                                                        avatar_url=user_ctx.avatar_url,
-                                                                        mention=user_ctx.mention,
-                                                                        guild_name=ctx.guild.name))
+            await ctx.send(embed=await functions.embeds.profile(all_data,
+                                                                name=user_ctx.name,
+                                                                icon_url=ctx.guild.icon_url,
+                                                                avatar_url=user_ctx.avatar_url,
+                                                                mention=user_ctx.mention,
+                                                                guild_name=ctx.guild.name))
         except TypeError as error:
             self.logger.error(error)
 
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='удали', help="удаляет опр. количество сообщений (только для админов)")
+    @commands.command(name='удали', help="удаляет определенное количество сообщений")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def delete(self, ctx):
@@ -112,7 +113,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         msg = ctx.message.content.split()
         if not msg[1].isdigit():
-            await ctx.channel.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
             self.logger.info("{} entered not a number.".format(ctx.author.name))
             return
 
@@ -128,12 +129,15 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         conn, user = self.pgsql.connect()
 
+        user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+        name_of_currency = user.fetchone()[0]['char_of_currency']
+
         user.execute('SELECT "dateRol" FROM users WHERE "discordID" = {}'.format(ctx.author.id))
         date = user.fetchone()[0]
 
         now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
         if date == now.day:
-            await ctx.send("Рултека на сегодня для Вас, {}, оконечна!".format(ctx.author.mention))
+            await ctx.send(roulette_ended.format(ctx.author.mention))
             return
 
         user.execute('UPDATE users SET "dateRol" = {} WHERE "discordID" = {}'.format(now.day, ctx.author.id))
@@ -144,76 +148,68 @@ class MainCommands(commands.Cog, name="Основные команды"):
         if thing == 0:
             user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
             conn.commit()
-            await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "реверсивок"))
+            await ctx.send(embed=await functions.embeds.roulette(ctx, win, name_of_currency.title()))
         elif thing == 1:
             user.execute('UPDATE users SET goldMoney = goldMoney + {} WHERE "discordID" = {}'.
                          format(win, ctx.author.id))
             conn.commit()
-            await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "золотых реверсивок"))
+            await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"Зол. {name_of_currency.title()}"))
         else:
             user.execute('UPDATE users SET rating = rating + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
             conn.commit()
-            await ctx.channel.send(embed=await functions.embeds.roulette(ctx, win, "ретинга"))
+            await ctx.send(embed=await functions.embeds.roulette(ctx, win, "ретинга"))
 
         self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='топ', help="вывод топ всех людей по реверсивкам")
+    @commands.command(name='топ', help="вывод топ всех людей по рейтингу")
     async def top(self, ctx):
-        conn, user = self.pgsql.connect()
+        conn, user = None, None
 
         try:
-            user.execute('SELECT "discordID", money FROM users ORDER BY money DESC LIMIT 5')
-            users = user.fetchall()
-            title = discord.Embed(
-                colour=discord.Colour.greyple()
-            )
-            i = 0
-            title.set_author(name='Топ пользователей по реверсивкам.')
-            for ply in users:
-                title.add_field(name=f'{i + 1} место: ',
-                                value=f'**{self.client.get_user(int(ply[0])).name}**: '
-                                f'__{int(ply[1])}__ реверсивок',
-                                inline=False)
-                i += 1
-            await ctx.channel.send(embed=title)
-        except Exception as error:
-            await ctx.channel.send('Я не могу вывести топ по обычным реверсивкам!')
-            self.logger.error(error)
-        try:
-            user.execute('SELECT "discordID\", goldMoney FROM users ORDER BY goldMoney DESC LIMIT 5')
-            users = user.fetchall()
-            title = discord.Embed(
-                colour=discord.Colour.gold()
-            )
-            i = 0
-            title.set_author(name='Топ пользователей по золотым реверсивкам.')
-            for ply in users:
-                title.add_field(name=f'{i + 1} место: ',
-                                value=f'**{self.client.get_user(int(ply[0])).name}**: '
-                                f'__{int(ply[1])}__ золотых реверсивок',
-                                inline=False)
-                i += 1
-            await ctx.channel.send(embed=title)
-        except Exception as error:
-            await ctx.channel.send('Я не могу вывести топ по золотым реверсивкам!')
-            self.logger.error(error)
+            conn, user = self.pgsql.connect()
 
-        self.pgsql.close_conn(conn, user)
+            user.execute("SELECT \"discordID\", rating FROM users ORDER BY rating DESC LIMIT 5")
+            data = user.fetchall()
 
-    @commands.command(name='продать', help="продаёт рейтинг в соотношении 1:1000")
+            embed = discord.Embed(colour=discord.Colour.dark_gold())
+
+            embed.description = "Топ пользователей по рейтингу."
+            for info, count in zip(data, range(0, len(data))):
+                name = None
+                try:
+                    name = self.client.get_user(int(info[0])).name
+                except Exception as error:
+                    self.logger.error(error)
+                    name = "no data"
+                finally:
+                    embed.add_field(name=f"{count + 1} место",
+                                    value=f"__{name}__: **{info[1]}** рейтинга",
+                                    inline=False)
+
+            await ctx.send(embed=embed)
+
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @commands.command(name='продать', help="продает рейтинг за ВС (1:1000)")
     async def sale(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             return
 
+        user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+        name_of_currency = user.fetchone()[0]['char_of_currency']
+
         msg = ctx.message.content.split()
 
         if len(msg) < 2:
-            await ctx.channel.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
             self.logger.info("{} entered one word.".format(ctx.author.name))
             return
 
         if not msg[1].isdigit():
-            await ctx.channel.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
             self.logger.info("{} entered not a number.".format(ctx.author.name))
             return
 
@@ -224,7 +220,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         msg[1] = int(msg[1])
 
         if rating < msg[1] or rating <= 0:
-            await ctx.channel.send(not_correct.format(ctx.author.mention, "рейтинга"))
+            await ctx.send(not_correct.format(ctx.author.mention, "рейтинга"))
             self.logger.info("{} entered a number more than have rating.")
             self.pgsql.close_conn(conn, user)
             return
@@ -233,23 +229,23 @@ class MainCommands(commands.Cog, name="Основные команды"):
                      format(msg[1], msg[1] * 1000, ctx.author.id))
         conn.commit()
 
-        await ctx.channel.send(rating_sale.format(ctx.author.mention, msg[1] * 1000, "реверсивок", 1000))
+        await ctx.send(rating_sale.format(ctx.author.mention, msg[1] * 1000, name_of_currency.title(), 1000))
 
         self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='обмен', help="меняет обычные реверсивки на золотые")
+    @commands.command(name='обмен', help="меняет обычные ВС на золотую ВС")
     async def swap(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             return
 
         msg = ctx.message.content.split()
         if len(msg) < 2:
-            await ctx.channel.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
             self.logger.info("{} entered one word.".format(ctx.author.name))
             return
 
         if not msg[1].isdigit():
-            await ctx.channel.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
             self.logger.info("{} entered not a number.".format(ctx.author.name))
             return
 
@@ -260,7 +256,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         msg[1] = int(msg[1])
 
         if revers < msg[1]:
-            await ctx.channel.send(more_than_have.format(ctx.author.mention, "реверсивок"))
+            await ctx.send(more_than_have.format(ctx.author.mention, "реверсивок"))
             self.logger.info("{} entered a number more than have rating.")
             self.pgsql.close_conn(conn, user)
             return
@@ -273,7 +269,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                      format(int(msg[1] / 4), ctx.author.id))
         conn.commit()
 
-        await ctx.channel.send(embed=await functions.embeds.swap(ctx, int(msg[1] / 4), msg[1], swaps))
+        await ctx.send(embed=await functions.embeds.swap(ctx, int(msg[1] / 4), msg[1], swaps))
 
     @commands.command(name="статистика", help="основная команда для статистики")
     async def static(self, ctx):
@@ -287,7 +283,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             steamid = user.fetchone()[0]
         except IndexError as error:
             self.logger.error(error)
-            await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
 
         if steamid != "None" and steamid:
             gamer.execute("SELECT * FROM users_steam WHERE steamid = %s", [steamid])
@@ -296,34 +292,34 @@ class MainCommands(commands.Cog, name="Основные команды"):
             labels, all_time = await create_figure(data)
 
             if not labels:
-                await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, for_statistics))
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, for_statistics))
                 return
 
             image = open("statistics.png", 'rb')
-            await ctx.channel.send(f"{ctx.author.mention}, вы провели за пултом {all_time}"
-                                   f"\nВот список составов, в которых вы находились:\n```" +
-                                   '\n'.join([x for x in labels]) + "```"
-                                   "\nГрафик ниже предоставит вам дополнительную информацию:",
-                                   file=discord.File(fp=image, filename="statistics.png"))
+            await ctx.send(f"{ctx.author.mention}, вы провели за пултом {all_time}"
+                           f"\nВот список составов, в которых вы находились:\n```" +
+                           '\n'.join([x for x in labels]) + "```"
+                           "\nГрафик ниже предоставит вам дополнительную информацию:",
+                           file=discord.File(fp=image, filename="statistics.png"))
             image.close()
         else:
-            await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
         try:
             os.remove("statistics.png")
         except PermissionError as error:
             self.logger.error(error)
 
-    @commands.command(name="серв_инфо", help="выводит информацию о сервере")
+    @commands.command(name="сервер", help="выводит информацию о сервере")
     async def server_info(self, ctx):
         embed = await functions.embeds.server_info(ctx.guild)
-        await ctx.channel.send(embed=embed)
+        await ctx.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
-            await ctx.channel.send(missing_permission.format(ctx.author.mention))
+            await ctx.send(missing_permission.format(ctx.author.mention))
             self.logger.error(error)
         elif isinstance(error, commands.CommandNotFound):
-            await ctx.channel.send(command_not_found.format(ctx.author.mention, ctx.message.content))
+            await ctx.send(command_not_found.format(ctx.author.mention, ctx.message.content))
         else:
             self.logger.error(error)

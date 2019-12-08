@@ -88,7 +88,7 @@ class PgSQLConnection(object):
             user = conn.cursor()
 
             # try:
-            #     user.execute("ALTER TABLE users RENAME COLUMN goldRevers TO goldMoney")
+            #     user.execute("ALTER TABLE bank ADD COLUMN create_at INT NOT NULL DEFAULT 0")
             #     conn.commit()
             # except Exception as error:
             #     self.logger.error(error)
