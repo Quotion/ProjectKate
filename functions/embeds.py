@@ -230,7 +230,7 @@ async def server_info(guild):
     time_date = datetime.datetime.strptime(str(guild.created_at), "%Y-%m-%d %H:%M:%S.%f")
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name="Информация по серверу {0.name}".format(guild))
+    embed.set_author(name="{0.name}".format(guild))
     embed.add_field(name="Регион: ", value=str(guild.region).title())
     embed.add_field(name="ID гильдии: ", value=guild.id)
     embed.add_field(name="Владелец: ", value=guild.owner.mention)
@@ -275,9 +275,9 @@ async def invest_help(ctx):
                           "куда вкладывать, иначе, смысла в получении прибыли нет. При вводе команды к!ивест_статус, "
                           "вам выводится состояние компаний и некоторая дополнительная информация, которая может "
                           "подсказать вам, куда лучше всего направить свой капитал. Далее вы просто вводите "
-                          "команду к!вложить <номер компании/предприятия> и ждать ответного сообщения от бота. Если "
-                          "вы всё сделали правильно, то прибыл не заставит себя долго ждать. НО учите, также что вы "
-                          "можете всё поетрять.",
+                          "команду к!купить_акции <название компании/количество акций> и просто ждёте увелечения "
+                          "стоимости акций. Если вы всё сделали правильно, то прибыл не заставит себя долго ждать. "
+                          "НО учите, также что вы можете всё поетрять.",
                     inline=False)
     embed.description = f"При появлении проблем, писать -> Rise#3047"
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
@@ -287,7 +287,7 @@ async def invest_help(ctx):
 async def bank_info(ctx, all_amount, course, name_of_bank):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name="Информация по \"{}\" банк".format(name_of_bank))
+    embed.set_author(name="{} банк".format(name_of_bank.title()))
     embed.add_field(name="Директор банка: ", value=ctx.guild.owner.mention, inline=False)
     embed.add_field(name="Нынешнее состояние: ", value=f"{all_amount} NEO", inline=False)
     embed.add_field(name="Курс: ", value=f"{course} NEO", inline=False)
@@ -298,9 +298,49 @@ async def bank_info(ctx, all_amount, course, name_of_bank):
 async def bill(ctx, info, bank):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name="Информация по счёту №{}".format(info[0]))
+    embed.set_author(name="Счёт №{}".format(info[0]))
     embed.add_field(name="Нынешнее состояние: ", value=f"{str(info[2])} NEO", inline=False)
     embed.add_field(name="Имя банка, в котором открыть счёт: ", value=bank['name'], inline=False)
     embed.add_field(name="Дата создания счёта: ", value=str(time.ctime(int(info[3]))), inline=False)
+    embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    return embed
+
+
+async def invests_status(ctx, info):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name="Статус компаний")
+    embed.add_field(name="Первая компания: ",
+                    value=f"Название: **{info['first_company']['name']}**"
+                          f"\nСтоимость акций: **{info['first_company']['share_price']} NEO**"
+                          f"\nПроцент повышения стоимости: **{info['first_company']['percent_of_lucky']}%**",
+                    inline=False)
+    embed.add_field(name="Вторая компания: ",
+                    value=f"Название: **{info['second_company']['name']}**"
+                          f"\nСтоимость акций: **{info['second_company']['share_price']} NEO**"
+                          f"\nПроцент повышения стоимости: **{info['second_company']['percent_of_lucky']}%**",
+                    inline=False)
+    embed.add_field(name="Третья компания: ",
+                    value=f"Название: **{info['third_company']['name']}**"
+                          f"\nСтоимость акций: **{info['third_company']['share_price']} NEO**"
+                          f"\nПроцент повышения стоимости: **{info['third_company']['percent_of_lucky']}%**",
+                    inline=False)
+    embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    return embed
+
+
+async def share(ctx, info):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name="Приобретенные акции")
+    embed.add_field(name="Первая компания: ",
+                    value=f"Количество акций: **{info['first_company']}** шт.",
+                    inline=False)
+    embed.add_field(name="Вторая компания: ",
+                    value=f"Количество акций: **{info['second_company']}** шт.",
+                    inline=False)
+    embed.add_field(name="Третья компания: ",
+                    value=f"Количество акций: **{info['third_company']}** шт.",
+                    inline=False)
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed

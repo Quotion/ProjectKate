@@ -87,12 +87,6 @@ class PgSQLConnection(object):
             self.logger.info("Connection PostgreSQL successfully establishment.")
             user = conn.cursor()
 
-            # try:
-            #     user.execute("ALTER TABLE bank ADD COLUMN create_at INT NOT NULL DEFAULT 0")
-            #     conn.commit()
-            # except Exception as error:
-            #     self.logger.error(error)
-
             return conn, user
 
         except Exception as error:
