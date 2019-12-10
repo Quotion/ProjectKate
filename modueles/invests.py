@@ -181,14 +181,31 @@ class Invests(commands.Cog, name="Инвистиции"):
         conn, user = None, None
         try:
             conn, user = self.pgsql.connect()
+            user.execute("SELECT guild_id FROM bank WHERE discordID = {}".format(ctx.author.id))
+            guild_id = user.fetchone()[0]
+
+            if guild_id != ctx.guild.id:
+                await ctx.send(embed=await description(ctx.author.mention, bill_already_open))
+                return
+
+        except Exception as error:
+            await ctx.send(something_went_wrong)
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+        try:
+            invest_status = {"first_company": 0, "second_company": 0, "third_company": 0}
+
+            conn, user = self.pgsql.connect()
             user.execute("INSERT INTO bank VALUES ({}, {}, {}, {})".format(ctx.author.id, ctx.guild.id, 0,
-                                                                           int(time.time())))
+                                                                           int(time.time())), json.dumps(invest_status))
             conn.commit()
+
+            await ctx.send(creating_bank_account.format(ctx.author.mention, ctx.author.id))
         except Exception as error:
             await ctx.send(embed=await description(ctx.author.mention, account_exist))
             self.logger.error(error)
-        else:
-            await ctx.send(creating_bank_account.format(ctx.author.mention, ctx.author.id))
         finally:
             self.pgsql.close_conn(conn, user)
 
@@ -199,7 +216,7 @@ class Invests(commands.Cog, name="Инвистиции"):
             conn, user = self.pgsql.connect()
             user.execute("SELECT * FROM bank WHERE discordID = {}".format(ctx.author.id))
             info = user.fetchall()[0]
-            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(info[1]))
             bank = user.fetchone()[0]
         except TypeError as error:
             await ctx.send(account_not_exist.format(ctx.author.mention))
