@@ -176,7 +176,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="открыть_счёт", help="открывает счёт в банке")
+    @commands.command(name="открыть_счёт", help="открывает счёт в банке", aliases=["открыть_счет"])
     async def open_bill(self, ctx):
         conn, user = None, None
         try:
@@ -209,7 +209,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="счёт", help="выводит информацию по счёту")
+    @commands.command(name="счёт", help="выводит информацию по счёту", aliases=["счет"])
     async def bill(self, ctx):
         conn, user, info, bank = None, None, None, None
         try:
@@ -229,7 +229,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="закрыть_счёт", help="закрывает и удаляет счет в банке")
+    @commands.command(name="закрыть_счёт", help="закрывает и удаляет счет в банке", aliases=["закрыть_счет"])
     async def close_bill(self, ctx):
         conn, user = None, None
         try:
@@ -433,7 +433,12 @@ class Invests(commands.Cog, name="Инвистиции"):
         invest_status = all_info[4]
 
         if not invest_status:
-            invest_status = {'first_company': 0, 'second_company': 0, 'third_company': 0}
+            invest_status = {'first_company': 0,
+                             'first_company_count': 0,
+                             'second_company': 0,
+                             'second_company_count': 0,
+                             'third_company': 0,
+                             'third_company_count': 0}
 
         if data[0].lower() == invests['first_company']['name'].lower():
             if invest_status['first_company'] + int(data[1]) > 1000:
@@ -446,6 +451,7 @@ class Invests(commands.Cog, name="Инвистиции"):
 
             amount = round(invests['first_company']['share_price'] * float(data[1]), 2)
             invest_status['first_company'] += int(data[1])
+            invest_status['first_company_count'] += round(invests['first_company']['share_price'] * float(data[1]), 2)
 
             await ctx.send(successful_buy.format(ctx.author.mention, invests['first_company']['name'], amount))
 
@@ -460,6 +466,7 @@ class Invests(commands.Cog, name="Инвистиции"):
 
             amount = round(invests['second_company']['share_price'] * float(data[1]), 2)
             invest_status['second_company'] += int(data[1])
+            invest_status['second_company_count'] += round(invests['second_company']['share_price'] * float(data[1]), 2)
 
             await ctx.send(successful_buy.format(ctx.author.mention, invests['second_company']['name'], amount))
 
@@ -474,6 +481,7 @@ class Invests(commands.Cog, name="Инвистиции"):
 
             amount = round(invests['third_company']['share_price'] * float(data[1]), 2)
             invest_status['third_company'] += int(data[1])
+            invest_status['third_company_count'] += round(invests['third_company']['share_price'] * float(data[1]), 2)
 
             await ctx.send(successful_buy.format(ctx.author.mention, invests['third_company']['name'], amount))
         else:

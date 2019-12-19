@@ -333,14 +333,31 @@ async def share(ctx, info):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Приобретенные акции")
+    try:
+        info['first_company_count']
+    except:
+        info['first_company_count'] = 0
+
+    try:
+        info['second_company_count']
+    except:
+        info['second_company_count'] = 0
+
+    try:
+        info['third_company_count']
+    except:
+        info['third_company_count'] = 0
     embed.add_field(name="Первая компания: ",
-                    value=f"Количество акций: **{info['first_company']}** шт.",
+                    value=f"Количество акций: **{info['first_company']}** шт.\n"
+                          f"Цена приобретения: **{info['first_company_count']}** NEO",
                     inline=False)
     embed.add_field(name="Вторая компания: ",
-                    value=f"Количество акций: **{info['second_company']}** шт.",
+                    value=f"Количество акций: **{info['second_company']}** шт.\n"
+                          f"Цена приобретения: **{info['second_company_count']}** NEO",
                     inline=False)
     embed.add_field(name="Третья компания: ",
-                    value=f"Количество акций: **{info['third_company']}** шт.",
+                    value=f"Количество акций: **{info['third_company']}** шт.\n"
+                          f"Цена приобретения: **{info['third_company_count']}** NEO",
                     inline=False)
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
