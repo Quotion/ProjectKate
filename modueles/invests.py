@@ -260,7 +260,6 @@ class Invests(commands.Cog, name="Инвистиции"):
             self.pgsql.close_conn(conn, user)
 
         try:
-
             conn, user = self.pgsql.connect()
             user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
             bank = user.fetchone()[0]
@@ -273,7 +272,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="положить", help="кладет на счет в банке")
+    @commands.command(name="положить", help="кладет на счет в банк")
     async def put_in_bank(self, ctx, *, amount: str):
 
         if not amount.isdigit():
@@ -287,10 +286,11 @@ class Invests(commands.Cog, name="Инвистиции"):
             user.execute("SELECT money FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
             money = user.fetchone()[0]
             user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
-            info = user.fetchone()
+            info = user.fetchone()[0]
+            print(info)
 
             if float(money) < float(amount):
-                await ctx.send(not_enough_money.format(ctx.author.mention, info['name_of_currency']))
+                await ctx.send(not_enough_money.format(ctx.author.mention, info['char_of_currency']))
                 return
         except TypeError as error:
             await ctx.send(account_not_exist.format(ctx.author.mention))
@@ -355,7 +355,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="снять", help="переводить на счёт")
+    @commands.command(name="снять", help="снять со счёта")
     async def get_from_bank(self, ctx, *, amount: str):
         if not amount.isdigit():
             await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))

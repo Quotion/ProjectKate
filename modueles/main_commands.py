@@ -198,6 +198,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
         if await MainCommands.profile_exist(self, ctx):
             return
 
+        conn, user = self.pgsql.connect()
+
         user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
         name_of_currency = user.fetchone()[0]['char_of_currency']
 

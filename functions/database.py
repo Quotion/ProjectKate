@@ -1,6 +1,7 @@
 import psycopg2
 import mysql.connector
 import logging
+import json
 
 
 class MySQLConnection(object):

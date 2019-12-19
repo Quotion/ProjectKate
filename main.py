@@ -13,7 +13,7 @@ import os
 import io
 import functions.embeds
 
-client = Bot(command_prefix='к!')
+client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'])
 
 logging.basicConfig(format="%(levelname)s: %(funcName)s (%(lineno)d): %(name)s: %(message)s",
                     level=logging.INFO)
@@ -219,8 +219,8 @@ class Katherine(discord.Client):
         async def on_message(message):
             if message.author.id == self.client.user.id:
                 return
-
-            await self.client.process_commands(message)
+            else:
+                await self.client.process_commands(message)
 
 
 Katherine(client)
