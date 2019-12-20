@@ -434,11 +434,11 @@ class Invests(commands.Cog, name="Инвистиции"):
 
         if not invest_status:
             invest_status = {'first_company': 0,
-                             'first_company_count': 0,
+                             'first_company_count': 0.0,
                              'second_company': 0,
-                             'second_company_count': 0,
+                             'second_company_count': 0.0,
                              'third_company': 0,
-                             'third_company_count': 0}
+                             'third_company_count': 0.0}
 
         if data[0].lower() == invests['first_company']['name'].lower():
             if invest_status['first_company'] + int(data[1]) > 1000:
@@ -448,6 +448,11 @@ class Invests(commands.Cog, name="Инвистиции"):
             elif float(data[1]) * invests['first_company']['share_price'] > amount:
                 await ctx.send(more_than_have.format(ctx.author.mention, "NEO"))
                 return
+
+            try:
+                invest_status['first_company_count']
+            except:
+                invest_status['first_company_count'] = 0.0
 
             amount = round(invests['first_company']['share_price'] * float(data[1]), 2)
             invest_status['first_company'] += int(data[1])
@@ -464,6 +469,11 @@ class Invests(commands.Cog, name="Инвистиции"):
                 await ctx.send(more_than_have.format(ctx.author.mention, "NEO"))
                 return
 
+            try:
+                invest_status['second_company_count']
+            except:
+                invest_status['second_company_count'] = 0.0
+
             amount = round(invests['second_company']['share_price'] * float(data[1]), 2)
             invest_status['second_company'] += int(data[1])
             invest_status['second_company_count'] += round(invests['second_company']['share_price'] * float(data[1]), 2)
@@ -478,6 +488,11 @@ class Invests(commands.Cog, name="Инвистиции"):
             elif float(data[1]) * invests['third_company']['share_price'] > amount:
                 await ctx.send(more_than_have.format(ctx.author.mention, "NEO"))
                 return
+
+            try:
+                invest_status['third_company_count']
+            except:
+                invest_status['third_company_count'] = 0.0
 
             amount = round(invests['third_company']['share_price'] * float(data[1]), 2)
             invest_status['third_company'] += int(data[1])
@@ -552,8 +567,18 @@ class Invests(commands.Cog, name="Инвистиции"):
                 await ctx.send(more_than_have.format(ctx.author.mention, "акций"))
                 return
 
+            try:
+                invest_status['first_company_count']
+            except:
+                invest_status['first_company_count'] = 0.0
+
             amount = round(invests['first_company']['share_price'] * float(data[1]), 2)
             invest_status['first_company'] -= int(data[1])
+            if int(data[1]) == invest_status['first_company']:
+                invest_status['first_company_count'] = 0.0
+            else:
+                invest_status['first_company_count'] -= round(invest_status['first_company'] /
+                                                              invest_status['first_company_count'] * float(data[1]), 2)
 
             await ctx.send(successful_sale.format(ctx.author.mention, invests['first_company']['name'], amount))
 
@@ -562,8 +587,19 @@ class Invests(commands.Cog, name="Инвистиции"):
                 await ctx.send(more_than_have.format(ctx.author.mention, "акций"))
                 return
 
+            try:
+                invest_status['second_company_count']
+            except:
+                invest_status['second_company_count'] = 0.0
+
             amount = round(invests['second_company']['share_price'] * float(data[1]), 2)
             invest_status['second_company'] -= int(data[1])
+            if int(data[1]) == invest_status['second_company']:
+                invest_status['second_company_count'] = 0.0
+            else:
+                invest_status['second_company_count'] -= round((invest_status['second_company'] /
+                                                                invest_status['second_company_count']) *
+                                                               float(data[1]), 2)
 
             await ctx.send(successful_sale.format(ctx.author.mention, invests['second_company']['name'], amount))
 
@@ -572,8 +608,18 @@ class Invests(commands.Cog, name="Инвистиции"):
                 await ctx.send(more_than_have.format(ctx.author.mention, "акций"))
                 return
 
+            try:
+                invest_status['third_company_count']
+            except:
+                invest_status['third_company_count'] = 0.0
+
             amount = round(invests['third_company']['share_price'] * float(data[1]), 2)
             invest_status['third_company'] -= int(data[1])
+            if int(data[1]) == invest_status['third_company']:
+                invest_status['third_company_count'] = 0.0
+            else:
+                invest_status['third_company_count'] -= round((invest_status['third_company'] /
+                                                              invest_status['third_company_count']) * float(data[1]), 2)
 
             await ctx.send(successful_sale.format(ctx.author.mention, invests['third_company']['name'], amount))
         else:
