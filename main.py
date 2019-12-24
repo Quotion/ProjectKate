@@ -1,4 +1,7 @@
+# https://github.com/Quotion/ProjectKate
+
 from functions.database import PgSQLConnection
+from discord.ext import commands
 from discord.ext.commands import Bot
 from language.treatment_ru import *
 from modueles.status import Status
@@ -45,6 +48,8 @@ class Katherine(discord.Client):
         @self.client.event
         async def on_ready():
             logger.info('Bot {} now loaded for 100%.'.format(self.client.user.name))
+            game = discord.Game("{}help".format(self.client.command_prefix[0]))
+            await self.client.change_presence(status=discord.Status.idle, activity=game)
 
     def events(self):
         @self.client.event
@@ -69,7 +74,7 @@ class Katherine(discord.Client):
             self.pgsql.close_conn(conn, user)
             channel = guild.system_channel
             await channel.send(embed=await functions.embeds.description(guild.name, thanks))
-            await channel.send(embed=await functions.embeds.description(self.client.command_prefix, channels))
+            await channel.send(embed=await functions.embeds.description(self.client.command_prefix[0], channels))
 
         @self.client.event
         async def on_member_join(member):

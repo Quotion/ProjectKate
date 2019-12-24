@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import json
 
 import discord
 from discord.ext import commands
@@ -113,7 +114,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         msg = ctx.message.content.split()
         if not msg[1].isdigit():
-            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("{} entered not a number.".format(ctx.author.name))
             return
 
@@ -206,12 +207,12 @@ class MainCommands(commands.Cog, name="Основные команды"):
         msg = ctx.message.content.split()
 
         if len(msg) < 2:
-            await ctx.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(just_a_command.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("{} entered one word.".format(ctx.author.name))
             return
 
         if not msg[1].isdigit():
-            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("{} entered not a number.".format(ctx.author.name))
             return
 
@@ -242,12 +243,12 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         msg = ctx.message.content.split()
         if len(msg) < 2:
-            await ctx.send(just_a_command.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(just_a_command.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("{} entered one word.".format(ctx.author.name))
             return
 
         if not msg[1].isdigit():
-            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("{} entered not a number.".format(ctx.author.name))
             return
 
@@ -320,7 +321,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             await ctx.send(missing_permission.format(ctx.author.mention))
-            self.logger.error(error)
+        elif isinstance(error, commands.ArgumentParsingError):
+            await ctx.send(not_enough_words.format(ctx.author.mention, ctx.message.content))
         elif isinstance(error, commands.CommandNotFound):
             await ctx.send(command_not_found.format(ctx.author.mention, ctx.message.content))
         else:

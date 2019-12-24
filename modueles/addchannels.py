@@ -57,7 +57,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
         elif ctx.message.channel_mentions:
             await ctx.channel.send(so_many_channels.format(ctx.author.mention))
         else:
-            await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("User entered incorrect data about guild channel: it's empty.")
 
     @commands.command(name='новости', help="сохрнаяет канал как новостной")
@@ -86,7 +86,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             await ctx.channel.send(so_many_channels.format(ctx.author.mention))
 
         else:
-            await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("User entered incorrect data about guild channel: it's empty.")
 
     @commands.command(name='логи', help="сохрнаяет канал для логгирования")
@@ -114,7 +114,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
         elif ctx.message.channel_mentions:
             await ctx.channel.send(so_many_channels.format(ctx.author.mention))
         else:
-            await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix))
+            await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("User entered incorrect data about guild channel: it's empty.")
 
     @commands.Cog.listener()

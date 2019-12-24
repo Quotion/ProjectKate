@@ -361,3 +361,70 @@ class Ban(commands.Cog, name="Система банов"):
 
         except Exception as error:
             self.logger.error(error)
+
+    @commands.command(name="купить_ранг", help="продает ранг за ВС")
+    async def buy_rank(self, ctx, *, rank: str):
+        if rank.lower() != "vip" and rank.lower() != "premium":
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, role_not_exist))
+            return
+
+        if rank.lower() == "superadmin":
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, heh_mdam))
+            return
+
+        conn, database, user, gamer = None, None, None, None
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT steamid FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
+            steamid = user.fetchone()[0]
+            if not steamid or steamid == "None":
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+                return
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+        try:
+            conn, user = self.pgsql.connect()
+            database, gamer = self.mysql.connect()
+            user.execute("SELECT steamid FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
+            steamid = user.fetchone()[0]
+            gamer.execute("SELECT rank FROM users_steam WHERE steamid = '{}'".format(steamid))
+            now_rank = gamer.fetchone()[0]
+            if rank == now_rank:
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, the_same_ranks))
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+            self.mysql.close_conn(database, gamer)
+
+        try:
+            conn, user = self.pgsql.connect()
+            database, gamer = self.mysql.connect()
+            user.execute("SELECT goldmoney, steamid FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
+            data = user.fetchall()[0]
+            money, steamid = data[0], data[1]
+            if money >= 1000000 and rank == "vip":
+                user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
+                             format(1000000, ctx.author.id))
+                conn.commit()
+                gamer.execute(f"UPDATE users_steam SET rank = 'vip' WHERE steamid = '{steamid}'")
+                database.commit()
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, buying_vip))
+            elif money >= 25000000 and rank == "premium":
+                user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
+                             format(10000000, ctx.author.id))
+                conn.commit()
+                gamer.execute(f"UPDATE users_steam SET rank = 'premium' WHERE steamid = '{steamid}'")
+                database.commit()
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, buying_premium))
+            else:
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, not_enough_gold))
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+            self.mysql.close_conn(database, gamer)
