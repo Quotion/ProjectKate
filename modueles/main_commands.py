@@ -321,7 +321,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
             await ctx.send(missing_permission.format(ctx.author.mention))
-        elif isinstance(error, commands.ArgumentParsingError):
+        elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(not_enough_words.format(ctx.author.mention, ctx.message.content))
         elif isinstance(error, commands.CommandNotFound):
             await ctx.send(command_not_found.format(ctx.author.mention, ctx.message.content))

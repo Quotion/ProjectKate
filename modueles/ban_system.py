@@ -279,7 +279,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.mysql.close_conn(database, gamer)
 
     @commands.command(name='синхр', help="синхронизирует GMod и discord")
-    async def check_ban(self, ctx):
+    async def sync(self, ctx):
 
         message = ctx.message.content.split()
 
