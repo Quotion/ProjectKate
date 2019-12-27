@@ -189,7 +189,6 @@ class Invests(commands.Cog, name="Инвистиции"):
                 return
 
         except Exception as error:
-            await ctx.send(something_went_wrong)
             self.logger.error(error)
         finally:
             self.pgsql.close_conn(conn, user)
