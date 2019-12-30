@@ -41,7 +41,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 user.execute(
                     'INSERT INTO users ("discordID", rating, money, goldMoney, "chanceRol", "dateRol", nick) '
                     'VALUES(%s, %s, %s, %s, %s, %s, %s)',
-                    (ctx.author.id, 0, 0, 0, 1, now.day, ctx.author.name))
+                    (ctx.author.id, 0, 0, 0, 1, now.day - 1, ctx.author.name))
                 conn.commit()
                 await ctx.send(profile_create.format(ctx.author.mention))
                 self.logger.info("Profile of {} successfully created.".format(ctx.author.name))

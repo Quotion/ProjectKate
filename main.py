@@ -132,18 +132,15 @@ class Katherine(discord.Client):
 
                 try:
                     plot = io.open("changelog.txt", "rb")
-                    msg_changes = discord.File(file, filename="Message_changes.txt")
-                    file.close()
+                    msg_changes = discord.File(plot, filename="Message_changes.txt")
+                    msg_changes.close()
+                    plot.close()
                 except Exception as error:
                     logging.error(error)
 
                 if msg_changes:
                     await channel.send(embed=embed, file=msg_changes)
-                    plot.close()
-                    try:
-                        os.remove("changelog.txt")
-                    except Exception as error:
-                        logger.error(error)
+                    os.remove("changelog.txt")
                 else:
                     await channel.send(embed=embed)
 

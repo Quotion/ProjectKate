@@ -345,6 +345,8 @@ class Invests(commands.Cog, name="Инвистиции"):
                          "UPDATE bank SET amount = amount + %s WHERE discordID = %s;",
                          (float(amount), ctx.author.id, float(amount), int(bill_id)))
             conn.commit()
+
+            await ctx.send(successful_transfer.format(ctx.author.mention, amount, bill_id))
         except TypeError as error:
             await ctx.send(embed=await description(ctx.author.mention, bill_not_found))
             self.logger.error(error)

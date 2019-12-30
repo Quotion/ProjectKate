@@ -54,8 +54,6 @@ async def message_edit(before, after):
                        "\n\n\n" +
                        "Сообщение после:\n" + after.content)
 
-        file.close()
-
     embed.set_author(name=f"В {now.strftime('%H:%M')} было изменено сообщение, отправленное {before.author.name}.",
                      icon_url=before.guild.icon_url)
     embed.add_field(name='Сообщение до и после:',

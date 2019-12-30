@@ -286,6 +286,15 @@ class Ban(commands.Cog, name="Система банов"):
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
 
+        try:
+            user.execute("SELECT discordID FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
+            var = user.fetchone()[0]
+        except TypeError:
+            await ctx.send(account_not_exist.format(ctx.author.mention, self.client.command_prefix[0]))
+        except Exception as error:
+            await ctx.send(something_went_wrong)
+            self.logger.error(error)
+
         if len(message) < 2:
             await ctx.channel.send("{}, SteamID.".format(ctx.author.mention))
             return
