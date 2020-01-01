@@ -287,7 +287,7 @@ class Ban(commands.Cog, name="Система банов"):
         database, gamer = self.mysql.connect()
 
         try:
-            user.execute("SELECT discordID FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
+            user.execute("SELECT * FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
             var = user.fetchone()[0]
         except TypeError:
             await ctx.send(account_not_exist.format(ctx.author.mention, self.client.command_prefix[0]))
