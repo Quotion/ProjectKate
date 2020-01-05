@@ -126,7 +126,8 @@ class Katherine(discord.Client):
                 if not roles:
                     roles = {}
                 roles[str(member.guild.id)] = {}
-                roles[str(member.guild.id)] = [role.id for role in member.roles]
+
+            roles[str(member.guild.id)] = [role.id for role in member.roles]
 
             user.execute("UPDATE users SET roles = %s WHERE \"discordID\" = %s", (json.dumps(roles), member.id))
             conn.commit()
