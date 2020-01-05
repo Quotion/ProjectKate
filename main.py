@@ -8,8 +8,6 @@ from modueles.addchannels import AddChannels
 from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
 from modueles.invests import Invests
-import datetime
-import random
 import discord
 import logging
 import json
@@ -85,12 +83,30 @@ class Katherine(discord.Client):
             user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
             info = user.fetchone()[0]
 
+            user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
+            roles = user.fetchone()[0]
+
             if info['logging']:
                 channel = self.client.get_channel(info['logging'])
 
                 await channel.send(embed=await functions.embeds.member_join(member))
 
             self.pgsql.close_conn(conn, user)
+
+            try:
+                roles[str(member.guild.id)]
+            except TypeError:
+                if not roles:
+                    roles = {}
+                roles[str(member.guild.id)] = {}
+                return
+
+            list_roles = list()
+
+            for role in roles[str(member.guild.id)]:
+                list_roles.append(member.guild.get_role(role))
+
+            await member.edit(roles=list_roles)
 
         @self.client.event
         async def on_member_remove(member):
@@ -100,6 +116,20 @@ class Katherine(discord.Client):
             conn, user = self.pgsql.connect()
 
             guild_id = member.guild.id
+
+            user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
+            roles = user.fetchone()[0]
+
+            try:
+                roles[str(member.guild.id)]
+            except TypeError:
+                if not roles:
+                    roles = {}
+                roles[str(member.guild.id)] = {}
+                roles[str(member.guild.id)] = [role.id for role in member.roles]
+
+            user.execute("UPDATE users SET roles = %s WHERE \"discordID\" = %s", (json.dumps(roles), member.id))
+            conn.commit()
 
             user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
             info = user.fetchone()[0]
@@ -115,7 +145,6 @@ class Katherine(discord.Client):
 
         @self.client.event
         async def on_message_edit(msg_before, msg_after):
-            plot = None
             if msg_after.content == msg_before.content or msg_before.author.id == self.client.user.id:
                 return
 

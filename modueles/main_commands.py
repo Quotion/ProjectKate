@@ -158,7 +158,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         else:
             user.execute('UPDATE users SET rating = rating + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
             conn.commit()
-            await ctx.send(embed=await functions.embeds.roulette(ctx, win, "ретинга"))
+            await ctx.send(embed=await functions.embeds.roulette(ctx, win, "рейтинга"))
 
         self.pgsql.close_conn(conn, user)
 
