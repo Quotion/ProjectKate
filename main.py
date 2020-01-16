@@ -252,6 +252,8 @@ class Katherine(discord.Client):
         async def on_message(message):
             if message.author.id == self.client.user.id:
                 return
+            elif "коллекция" in message.content:
+                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1574575898")
             else:
                 await self.client.process_commands(message)
 

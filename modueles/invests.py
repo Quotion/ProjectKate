@@ -29,7 +29,10 @@ class Invests(commands.Cog, name="Инвистиции"):
     def __check_course__(self):
         self.time = int(time.time())
 
-        soup = BeautifulSoup(requests.get(url=self.url, headers={'Connection':'close'}).text, features="lxml")
+        soup = None
+
+        with requests.get(url=self.url) as s:
+            soup = BeautifulSoup(s.text, features="lxml")
 
         table = soup.find("div", {"class": "chart__subtitle js-chart-value"})
         course = float(table.text[10:17].replace(' ', '').replace(',', '.'))
