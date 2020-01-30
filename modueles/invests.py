@@ -10,7 +10,7 @@ from functions.database import PgSQLConnection
 from functions.database import MySQLConnection
 
 
-class Invests(commands.Cog, name="Инвистиции"):
+class Invests(commands.Cog, name="Инвестиции"):
 
     def __init__(self, user):
         self.client = user
@@ -123,11 +123,11 @@ class Invests(commands.Cog, name="Инвистиции"):
         with open("invests.json", "w", encoding="utf8") as file:
             json.dump(info, file, indent=5)
 
-    @commands.command(name="инвест_помощь", help="закрывает и удаляет счет в банке")
+    @commands.command(name="инвест_помощь", help="<префикс>инвест_помощь")
     async def invest_help(self, ctx):
         await ctx.send(embed=await invest_help(ctx))
 
-    @commands.command(name="имя_банка", help="изменяет название банка")
+    @commands.command(name="имя_банка", help="<префикс>имя_банка <новое имя банка>")
     @commands.has_permissions(administrator=True)
     async def name_bank(self, ctx, *, name: str):
         conn, user, bank = None, None, None
@@ -153,7 +153,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="имя_валюты", help="изменяет название валюты")
+    @commands.command(name="имя_валюты", help="<префикс>имя_валюты <новое имя валюты>")
     @commands.has_permissions(administrator=True)
     async def name_currency(self, ctx, *, name: str):
         conn, user, bank = None, None, None
@@ -179,7 +179,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="открыть_счёт", help="открывает счёт в банке", aliases=["открыть_счет"])
+    @commands.command(name="открыть_счет", help="<префикс>открыть_счет", aliases=["открыть_счёт"])
     async def open_bill(self, ctx):
         conn, user = None, None
         try:
@@ -211,7 +211,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="счёт", help="выводит информацию по счёту", aliases=["счет"])
+    @commands.command(name="счет", help="<префикс>счет", aliases=["счёт"])
     async def bill(self, ctx):
         conn, user, info, bank = None, None, None, None
         try:
@@ -231,7 +231,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="закрыть_счёт", help="закрывает и удаляет счет в банке", aliases=["закрыть_счет"])
+    @commands.command(name="закрыть_счет", help="<префикс>закрыть_счет", aliases=["закрыть_счёт"])
     async def close_bill(self, ctx):
         conn, user = None, None
         try:
@@ -249,7 +249,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="банк", help="показывает информацию по банку")
+    @commands.command(name="банк", help="<префикс>банк")
     async def bank(self, ctx):
         conn, user, all_amount = None, None, .0
         try:
@@ -274,7 +274,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="положить", help="кладет на счет в банк")
+    @commands.command(name="положить", help="<префикс>положить <количество ВС>")
     async def put_in_bank(self, ctx, *, amount: str):
 
         if not amount.isdigit():
@@ -317,7 +317,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="перевести", help="переводит со счёта на счёт")
+    @commands.command(name="перевести", help="<префикс>перевести <Disocrd> <количество ВС>")
     async def transaction(self, ctx, *, data: str):
         conn, user = None, None
 
@@ -359,7 +359,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="снять", help="снять со счёта")
+    @commands.command(name="снять", help="<префикс>снять <количество ВС>")
     async def get_from_bank(self, ctx, *, amount: str):
         if not amount.isdigit():
             await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix[0]))
@@ -399,14 +399,14 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="инвест_статус", help="возвращает вам деньги со счёта")
+    @commands.command(name="инвест_статус", help="<префикс>инвест_статусы")
     async def invest_status(self, ctx):
         with open("invests.json", "r", encoding="utf8") as file:
             info = json.load(file)
 
             await ctx.send(embed=await invests_status(ctx, info))
 
-    @commands.command(name="купить_акции", help="вкладывается в опроеделенную компанию")
+    @commands.command(name="купить_акции", help="<префикс>купить_акции <количество акций>")
     async def buy_share(self, ctx, *, data: str):
         data = data.split()
 
@@ -503,7 +503,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="акции", help="показывает акции которые у вас есть")
+    @commands.command(name="акции", help="<префикс>акции")
     async def share(self, ctx):
         conn, user = None, None
 
@@ -525,7 +525,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="продать_акции", help="продает акции")
+    @commands.command(name="продать_акции", help="<префикс>продать_акции <количество акций>")
     async def sale_share(self, ctx, *, data: str):
         data = data.split()
 
@@ -617,7 +617,7 @@ class Invests(commands.Cog, name="Инвистиции"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="курс", help="кладет на счет в банке")
+    @commands.command(name="курс", help="<префикс>курс")
     async def course(self, ctx):
         course = self.__check_course__()
         embed = discord.Embed(colour=discord.Colour.default())

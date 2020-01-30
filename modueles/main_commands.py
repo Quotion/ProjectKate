@@ -52,7 +52,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
             return True
 
-    @commands.command(name='профиль', help="полна информация по вашему профилю")
+    @commands.command(name='профиль', help="<префикс>профиль <Disocrd или ничего>")
     async def profile(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             return
@@ -103,7 +103,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='удали', help="удаляет определенное количество сообщений")
+    @commands.command(name='удали', help="<префикс>удали <количество сообщений>")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def delete(self, ctx):
@@ -123,7 +123,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             channel = self.client.get_channel(info['logging'])
             await channel.send(embed=await functions.embeds.purge(ctx, int(msg[1])))
 
-    @commands.command(name='рулетка', help="рандомно даёт приз один раз в сутки")
+    @commands.command(name='рулетка', help="<префикс>рулетка")
     async def roulette(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             return
@@ -162,7 +162,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='топ', help="вывод топ всех людей по рейтингу")
+    @commands.command(name='топ', help="<префикс>топ")
     async def top(self, ctx):
         conn, user = None, None
 
@@ -194,7 +194,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='продать', help="продает рейтинг за ВС (1:1000)")
+    @commands.command(name='продать', help="<префикс>продать <количество рейтинга>")
     async def sale(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             return
@@ -236,7 +236,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='обмен', help="меняет обычные ВС на золотую ВС")
+    @commands.command(name='обмен', help="<префикс>обмен <количетсво ВС>")
     async def swap(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             return
@@ -274,7 +274,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         await ctx.send(embed=await functions.embeds.swap(ctx, int(msg[1] / 4), msg[1], swaps))
 
-    @commands.command(name="статистика", help="основная команда для статистики")
+    @commands.command(name="статистика", help="<префикс>статистика")
     async def static(self, ctx):
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
@@ -312,7 +312,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         except PermissionError as error:
             self.logger.error(error)
 
-    @commands.command(name="сервер", help="выводит информацию о сервере")
+    @commands.command(name="сервер", help="<префикс>сервер")
     async def server_info(self, ctx):
         embed = await functions.embeds.server_info(ctx.guild)
         await ctx.send(embed=embed)

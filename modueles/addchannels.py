@@ -32,7 +32,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             return True
         return commands.check(predicate)
 
-    @commands.command(name="основной", help="сохрнаяет канал как \"основной\" (для общения и т.д.)")
+    @commands.command(name="основной", help="<префикс>основной <хайлайт канала>")
     @commands.guild_only()
     async def main_channel(self, ctx):
         AddChannels.info_exist(self)
@@ -60,7 +60,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("User entered incorrect data about guild channel: it's empty.")
 
-    @commands.command(name='новости', help="сохрнаяет канал как новостной")
+    @commands.command(name='новости', help="<префикс>новости <хайлайт канала>")
     @commands.guild_only()
     async def news(self, ctx):
         AddChannels.info_exist(self)
@@ -89,7 +89,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.info("User entered incorrect data about guild channel: it's empty.")
 
-    @commands.command(name='логи', help="сохрнаяет канал для логгирования")
+    @commands.command(name='логи', help="<префикс>логи <хайлайт канала>")
     @commands.guild_only()
     async def log(self, ctx):
         AddChannels.info_exist(self)

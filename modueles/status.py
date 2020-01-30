@@ -21,7 +21,7 @@ class Status(commands.Cog, name="Статус серверов"):
         self.mysql = MySQLConnection()
         self.pgsql = PgSQLConnection()
 
-    @commands.command(name="проверь_статус")
+    @commands.command(name="проверь_статус", help="<префикс>проверь_статус")
     @commands.has_permissions(administrator=True)
     async def check_status(self, ctx):
         conn, user = self.pgsql.connect()
@@ -174,7 +174,7 @@ class Status(commands.Cog, name="Статус серверов"):
         except Exception as error:
             self.logger.error(error)
 
-    @commands.command(name='статус', help="сохраняет канал для статуса серверов")
+    @commands.command(name='статус', help="<префикс>статус <хайлайт канала>")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def main_channel(self, ctx):
@@ -212,7 +212,7 @@ class Status(commands.Cog, name="Статус серверов"):
 
         self.pgsql.close_conn(conn, user)
 
-    @commands.command(help="ip и вывод сообщения (только для админов)")
+    @commands.command(help="<префикс>ip <ip:port>")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def ip(self, ctx):
@@ -271,7 +271,7 @@ class Status(commands.Cog, name="Статус серверов"):
 
         self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="удалить_статус")
+    @commands.command(name="удалить_статус", help="<префикс>удалить_статус")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def delete_status(self, ctx):

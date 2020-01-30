@@ -84,7 +84,11 @@ class Katherine(discord.Client):
             info = user.fetchone()[0]
 
             user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
-            roles = user.fetchone()[0]
+            roles = None
+            try:
+                roles = user.fetchone()[0]
+            except Exception:
+                pass
 
             if info['logging']:
                 channel = self.client.get_channel(info['logging'])

@@ -33,7 +33,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.pgsql.close_conn(conn, user)
         return ids
 
-    @commands.command(name='бан', help="банит игрока")
+    @commands.command(name='бан', help="<префикс>бан <SteamID или Discord> <мин.> <причина>")
     @commands.has_permissions(administrator=True)
     async def ban(self, ctx):
         message = ctx.message.content.split()
@@ -161,7 +161,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.pgsql.close_conn(conn, user)
         self.mysql.close_conn(database, gamer)
 
-    @commands.command(name='разбан', help="разбанивает игрока")
+    @commands.command(name='разбан', help="<префикс>разбан <SteamID или Discord>")
     @commands.has_permissions(administrator=True)
     async def unban(self, ctx):
 
@@ -219,7 +219,7 @@ class Ban(commands.Cog, name="Система банов"):
         except Exception as error:
             self.logger.error(error)
 
-    @commands.command(name='проверь', help="проверяет находится ли игрок в бане")
+    @commands.command(name='проверь', help="<префикс>проверь <SteamID, или Discord, или ничего>")
     async def check_ban(self, ctx):
 
         message = ctx.message.content.split()
@@ -278,7 +278,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.pgsql.close_conn(conn, user)
         self.mysql.close_conn(database, gamer)
 
-    @commands.command(name='синхр', help="синхронизирует GMod и discord")
+    @commands.command(name='синхр', help="<префикс>синхр <SteamID>")
     async def sync(self, ctx):
 
         message = ctx.message.content.split()
@@ -313,7 +313,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.pgsql.close_conn(conn, user)
         self.mysql.close_conn(database, gamer)
 
-    @commands.command(name="ранг", help="ставит ранг определенному игроку")
+    @commands.command(name="ранг", help="<префикс>ранг <SteamID или Discord> <ранг>")
     @commands.has_permissions(administrator=True)
     async def set_rank(self, ctx):
         try:
@@ -371,7 +371,7 @@ class Ban(commands.Cog, name="Система банов"):
         except Exception as error:
             self.logger.error(error)
 
-    @commands.command(name="купить_ранг", help="продает ранг за ВС")
+    @commands.command(name="купить_ранг", help="<префикс>купить_ранг <vip (500000) или premium (1000000)>")
     async def buy_rank(self, ctx, *, rank: str):
         if rank.lower() != "vip" and rank.lower() != "premium":
             await ctx.send(embed=await functions.embeds.description(ctx.author.mention, role_not_exist))
@@ -416,16 +416,16 @@ class Ban(commands.Cog, name="Система банов"):
             user.execute("SELECT goldmoney, steamid FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
             data = user.fetchall()[0]
             money, steamid = data[0], data[1]
-            if money >= 1000000 and rank == "vip":
+            if money >= 500000 and rank == "vip":
                 user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
-                             format(1000000, ctx.author.id))
+                             format(500000, ctx.author.id))
                 conn.commit()
                 gamer.execute(f"UPDATE users_steam SET rank = 'vip' WHERE steamid = '{steamid}'")
                 database.commit()
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, buying_vip))
-            elif money >= 25000000 and rank == "premium":
+            elif money >= 1000000 and rank == "premium":
                 user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
-                             format(10000000, ctx.author.id))
+                             format(1000000, ctx.author.id))
                 conn.commit()
                 gamer.execute(f"UPDATE users_steam SET rank = 'premium' WHERE steamid = '{steamid}'")
                 database.commit()
