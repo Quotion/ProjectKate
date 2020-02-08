@@ -47,8 +47,7 @@ class Katherine(discord.Client):
         @self.client.event
         async def on_ready():
             logger.info('Bot {} now loaded for 100%.'.format(self.client.user.name))
-            game = discord.Game("{}help".format(self.client.command_prefix[0]))
-            await self.client.change_presence(status=discord.Status.idle, activity=game)
+            await self.client.change_presence(activity=discord.Game(name="{}help".format(self.client.command_prefix[0])))
 
     def events(self):
         @self.client.event

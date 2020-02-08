@@ -4,7 +4,8 @@ import os
 import json
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+import random
 
 import functions.database
 import functions.helper
@@ -25,6 +26,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
         self.mysql = functions.database.MySQLConnection()
         self.pgsql = functions.database.PgSQLConnection()
 
+        self.generate_promo.start()
+
     async def profile_exist(self, ctx):
         conn, user = self.pgsql.connect()
         try:
@@ -43,7 +46,6 @@ class MainCommands(commands.Cog, name="Основные команды"):
                     'VALUES(%s, %s, %s, %s, %s, %s, %s)',
                     (ctx.author.id, 0, 0, 0, 1, now.day - 1, ctx.author.name))
                 conn.commit()
-                await ctx.send(profile_create.format(ctx.author.mention))
                 self.logger.info("Profile of {} successfully created.".format(ctx.author.name))
             except Exception as error:
                 await ctx.send(something_went_wrong)
@@ -52,10 +54,107 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
             return True
 
+    @tasks.loop(seconds=15.0)
+    async def generate_promo(self):
+        data, conn, user = None, None, None
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT guild_id, promocode, bank_info FROM info WHERE NOT (promocode ->> 'code'::text) = '0'::text")
+            data = user.fetchall()
+            if not data:
+                raise TypeError
+        except TypeError as error:
+            pass
+        except Exception as error:
+            self.logger.error(error)
+        else:
+            for item in data:
+
+                channel = self.client.get_guild(int(item[0])).system_channel
+
+                promo, win, thing = None, None, None
+                comment = random.choice(promo_event)
+
+                if not item[1]['code'] == 1:
+                    promo = item[1]['code']
+                    thing = int(str(item[1]['code'])[5]) - 4
+                    win = item[1]['amount']
+                else:
+                    win, thing = await functions.helper.promo_win()
+                    promo = str(random.randint(10000, 100000)) + str(thing + 4)
+
+                    user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": win, "code": int(promo)}), item[0]))
+                    conn.commit()
+
+                if thing == 0:
+                    await channel.send(comment.format(win, item[2]['char_of_currency'], promo))
+                elif thing == 1:
+                    await channel.send(comment.format(win, f"зол. {item[2]['char_of_currency']}", promo))
+                else:
+                    await channel.send(comment.format(win, f"рейт.", promo))
+
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @generate_promo.before_loop
+    async def ready(self):
+        await self.client.wait_until_ready()
+
+
+    @commands.command(name='вкл_промо', help="<префикс>вкл_промо")
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    async def promo_on(self, ctx):
+        conn, user = None, None
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT promocode FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            promo = user.fetchone()[0]
+            if not promo['code'] == 0:
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, promo_already_on))
+                return
+            else:
+                user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 1}), ctx.guild.id))
+                conn.commit()
+                await ctx.send(promo_on.format(ctx.author.mention, self.client.command_prefix[0]))
+        except TypeError as error:
+            self.logger.error(error)
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @commands.command(name='выкл_промо', help="<префикс>вкл_промо")
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    async def promo_off(self, ctx):
+        conn, user = None, None
+
+        try:
+            conn, user = self.pgsql.connect()
+            user.execute("SELECT promocode FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            promo = user.fetchone()[0]
+            if promo['code'] == 0:
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, promo_already_off))
+                return
+            else:
+                user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 0}), ctx.guild.id))
+                conn.commit()
+                await ctx.send(promo_off.format(ctx.author.mention, self.client.command_prefix[0]))
+        except TypeError as error:
+            self.logger.error(error)
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+
     @commands.command(name='профиль', help="<префикс>профиль <Disocrd или ничего>")
     async def profile(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
-            return
+            pass
 
         conn, user = self.pgsql.connect()
         data = None
@@ -123,6 +222,53 @@ class MainCommands(commands.Cog, name="Основные команды"):
             channel = self.client.get_channel(info['logging'])
             await channel.send(embed=await functions.embeds.purge(ctx, int(msg[1])))
 
+    @commands.command(name="промокод", help="<префикс>промокод <6 цифр>")
+    async def promocode(self, ctx, *, promo: str):
+        if await MainCommands.profile_exist(self, ctx):
+            pass
+
+        if not promo.isdigit or not len(promo) == 6:
+            ctx.send(embed = await functions.embeds.description(ctx.author.mention, not_a_number))
+            return
+
+        try:
+            conn, user = self.pgsql.connect()
+
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            name_of_currency = user.fetchone()[0]['char_of_currency']
+
+            user.execute("SELECT promocode FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            promo = user.fetchone()[0]
+
+            if promo['code'] == 0:
+                ctx.send(embed = await functions.embeds.description(ctx.author.mention, promo_is_off))
+                return
+            elif promo['code'] == 1:
+                ctx.send(embed = await functions.embeds.description(ctx.author.mention, promo_is_enter))
+                return
+            elif str(promo['code'])[5] == "4":
+                user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(promo["amount"], ctx.author.id))
+                conn.commit()
+                await ctx.send(promo_is_active.format(ctx.author.mention, promo["amount"], name_of_currency))
+            elif str(promo['code'])[5] == "5":
+                user.execute('UPDATE users SET goldmoney = goldmoney + {} WHERE "discordID" = {}'.format(promo["amount"], ctx.author.id))
+                conn.commit()
+                await ctx.send(promo_is_active.format(ctx.author.mention, promo["amount"], f"Зол. {name_of_currency}"))
+            elif str(promo['code'])[5] == "6":
+                user.execute('UPDATE users SET rating = rating + {} WHERE "discordID" = {}'.format(promo["amount"], ctx.author.id))
+                conn.commit()
+                await ctx.send(promo_is_active.format(ctx.author.mention, promo["amount"], "рейтинга"))
+
+            user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 1}), ctx.guild.id))
+            conn.commit()
+
+        except Exception as error:
+            self.logger.error(error)
+
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+
     @commands.command(name='рулетка', help="<префикс>рулетка")
     async def roulette(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
@@ -149,12 +295,12 @@ class MainCommands(commands.Cog, name="Основные команды"):
         if thing == 0:
             user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
             conn.commit()
-            await ctx.send(embed=await functions.embeds.roulette(ctx, win, name_of_currency.title()))
+            await ctx.send(embed=await functions.embeds.roulette(ctx, win, name_of_currency))
         elif thing == 1:
             user.execute('UPDATE users SET goldMoney = goldMoney + {} WHERE "discordID" = {}'.
                          format(win, ctx.author.id))
             conn.commit()
-            await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"Зол. {name_of_currency.title()}"))
+            await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"Зол. {name_of_currency}"))
         else:
             user.execute('UPDATE users SET rating = rating + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
             conn.commit()

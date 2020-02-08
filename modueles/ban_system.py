@@ -320,8 +320,12 @@ class Ban(commands.Cog, name="Система банов"):
 
             message = ctx.message.content.split()
 
-            if len(message) < 3:
-                await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, len_of_command))
+            if len(message) <= 2:
+                await ctx.send(len_of_command.format(ctx.author.mention, self.client.command_prefix[0]))
+                return
+            elif ctx.message.mentions and len(message) - len(ctx.message.mentions) >= 3:
+                await ctx.send(embed = await functions.embeds.description(ctx.author.mention, steamid_or_discord))
+                return
 
             steamids = self.get_all_steamid()
             discordids = self.get_all_discordid()
@@ -330,40 +334,33 @@ class Ban(commands.Cog, name="Система банов"):
             database, gamer = self.mysql.connect()
 
             if ctx.message.mentions:
-                if ctx.message.mentions[0].id in discordids:
-                    pass
-                elif not message[1].upper() in steamids:
-                    self.logger.error("SteamID or DiscordID for ban not in BD.")
-                    await ctx.channel.send(
-                        embed=await functions.embeds.description(ctx.author.mention, steamid_not_exist))
-                    return
+                for mention in ctx.message.mentions:
+                    if mention.id in discordids:
+                        discordid = mention.id
+                        user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {discordid}")
+                        steamid = user.fetchone()[0]
+                        if steamid == "None" or not steamid:
+                            await ctx.channel.send(not_synchronized.format(ctx.author.mention, self.client.get_user(int(discordid)).mention))
+                            return
+                        gamer.execute(f"UPDATE users_steam SET rank = '{message[len(message)]}' WHERE steamid = '{steamid}'")
+                        database.commit()
+                        self.logger.info("User with SteamID {} successfully changed rank.".format(steamid))
+                        await ctx.channel.send(rank_changed.format(ctx.author.mention, message[len(message) - 1], self.client.get_user(int(discordid)).mention))
+                    else:
+                        ctx.send(man_not_in_bd.format(ctx.author.mention, self.client.get_user(int(mention.id)).mention))
             else:
-                await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, not_highlight))
-
-            if message[1].upper() in steamids:
-                steamid = message[1].upper()
-                gamer.execute(f"UPDATE users_steam SET rank = '{message[2]}' WHERE steamid = '{steamid}'")
-                database.commit()
-                self.logger.info("User with SteamID {} successfully changed rank.".format(steamid))
-                await ctx.channel.send(
-                    rank_changed.format(ctx.author.mention, steamid))
-
-            elif ctx.message.mentions[0].id in discordids:
-                discordid = ctx.message.mentions[0].id
-                user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {discordid}")
-                steamid = user.fetchone()[0]
-                if steamid == "None":
-                    await ctx.channel.send(not_synchronized.format(ctx.author.mention,
-                                                                   self.client.get_user(int(discordid)).mention))
-                    return
-                gamer.execute(f"UPDATE users_steam SET rank = '{message[2]}' WHERE steamid = '{steamid}'")
-                database.commit()
-                self.logger.info("User with SteamID {} successfully changed rank.".format(steamid))
-                await ctx.channel.send(
-                    rank_changed.format(ctx.author.mention, self.client.get_user(int(discordid)).mention))
-
-            else:
-                await ctx.channel.send(something_went_wrong)
+                all_steamids = message[1:len(message) - 1]
+                for steamid in all_steamids:
+                    steamid = steamid.upper()
+                    if not steamid in steamids:
+                        await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, steamid_not_exist))
+                        return
+                    elif steamid in steamids:
+                        steamid = steamid.upper()
+                        gamer.execute(f"UPDATE users_steam SET rank = '{message[len(message) - 1]}' WHERE steamid = '{steamid}'")
+                        database.commit()
+                        self.logger.info("User with SteamID {} successfully changed rank.".format(steamid))
+                        await ctx.channel.send(rank_changed.format(ctx.author.mention, message[len(message) - 1], steamid))
 
             self.pgsql.close_conn(conn, user)
             self.mysql.close_conn(database, gamer)

@@ -20,3 +20,23 @@ async def random_win():
             return random.randint(5, 16), 2
         else:
             return random.randint(3, 5), 2
+
+async def promo_win():
+    win = random.randint(0, 2)
+    if win == 0:
+        if random.randint(0, 2) == 0:
+            return random.randrange(100000, 600000, 100000), 0
+        else:
+            return random.randrange(10000, 110000, 10000), 0
+
+    elif win == 1:
+        if random.randint(0, 2) == 0:
+            return random.randrange(10000, 15000, 1000), 1
+        else:
+            return random.randrange(10000, 60000, 1000), 1
+
+    else:
+        if random.randint(0, 2) == 0:
+            return random.randint(10, 30), 2
+        else:
+            return random.randint(5, 10), 2
