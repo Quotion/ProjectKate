@@ -34,6 +34,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
 
     @commands.command(name="основной", help="<префикс>основной <хайлайт канала>")
     @commands.guild_only()
+    @commands.has_permissions(administrator=True)
     async def main_channel(self, ctx):
         AddChannels.info_exist(self)
 
@@ -62,6 +63,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
 
     @commands.command(name='новости', help="<префикс>новости <хайлайт канала>")
     @commands.guild_only()
+    @commands.has_permissions(administrator=True)
     async def news(self, ctx):
         AddChannels.info_exist(self)
 
@@ -91,6 +93,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
 
     @commands.command(name='логи', help="<префикс>логи <хайлайт канала>")
     @commands.guild_only()
+    @commands.has_permissions(administrator=True)
     async def log(self, ctx):
         AddChannels.info_exist(self)
 

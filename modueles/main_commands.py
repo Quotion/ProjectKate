@@ -54,7 +54,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
             return True
 
-    @tasks.loop(seconds=15.0)
+    @tasks.loop(minutes=456.0)
     async def generate_promo(self):
         data, conn, user = None, None, None
 
@@ -228,7 +228,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             pass
 
         if not promo.isdigit or not len(promo) == 6:
-            ctx.send(embed = await functions.embeds.description(ctx.author.mention, not_a_number))
+            await ctx.send(embed = await functions.embeds.description(ctx.author.mention, not_a_number))
             return
 
         try:
@@ -241,10 +241,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
             promo = user.fetchone()[0]
 
             if promo['code'] == 0:
-                ctx.send(embed = await functions.embeds.description(ctx.author.mention, promo_is_off))
+                await ctx.send(embed = await functions.embeds.description(ctx.author.mention, promo_is_off))
                 return
             elif promo['code'] == 1:
-                ctx.send(embed = await functions.embeds.description(ctx.author.mention, promo_is_enter))
+                await ctx.send(embed = await functions.embeds.description(ctx.author.mention, promo_is_enter))
                 return
             elif str(promo['code'])[5] == "4":
                 user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(promo["amount"], ctx.author.id))
@@ -272,7 +272,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name='рулетка', help="<префикс>рулетка")
     async def roulette(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
-            return
+            pass
 
         conn, user = self.pgsql.connect()
 
@@ -343,7 +343,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name='продать', help="<префикс>продать <количество рейтинга>")
     async def sale(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
-            return
+            pass
 
         conn, user = self.pgsql.connect()
 
@@ -385,7 +385,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name='обмен', help="<префикс>обмен <количетсво ВС>")
     async def swap(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
-            return
+            pass
 
         msg = ctx.message.content.split()
         if len(msg) < 2:
@@ -422,6 +422,9 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
     @commands.command(name="статистика", help="<префикс>статистика")
     async def static(self, ctx):
+        if await MainCommands.profile_exist(self, ctx):
+            pass
+        
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
         user.execute("SELECT steamid FROM users WHERE \"discordID\" = %s", [ctx.author.id])
@@ -445,7 +448,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 return
 
             image = open("statistics.png", 'rb')
-            await ctx.send(f"{ctx.author.mention}, вы провели за пултом {all_time}"
+            await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time}"
                            f"\nВот список составов, в которых вы находились:\n```" +
                            '\n'.join([x for x in labels]) + "```"
                            "\nГрафик ниже предоставит вам дополнительную информацию:",

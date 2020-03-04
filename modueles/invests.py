@@ -223,6 +223,9 @@ class Invests(commands.Cog, name="Инвестиции"):
         except TypeError as error:
             await ctx.send(account_not_exist.format(ctx.author.mention))
             self.logger.error(error)
+        except IndexError as error:
+            await ctx.send(account_not_exist.format(ctx.author.mention))
+            self.logger.error(error)
         except Exception as error:
             await ctx.send(something_went_wrong)
             self.logger.error(error)

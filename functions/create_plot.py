@@ -57,7 +57,7 @@ async def create_figure(data):
                 labels.append("81-722")
             elif i == 18:
                 time.append(data[i])
-                labels.append("81-740")
+                labels.append("81-540.2")
             elif i == 19:
                 time.append(data[i])
                 labels.append("81-760")
@@ -78,13 +78,12 @@ async def create_figure(data):
     labels.sort(reverse=True)
 
     for i in range(0, len(time)):
-        print(time[i])
         text.append(f'{labels[i]}: {datetime.datetime.fromtimestamp(time[i]).strftime("%H:%M:%S")}')
 
     time = [x // 60 for x in time]
 
-    plt.rc('xtick', labelsize=8)
-    plt.rc('ytick', labelsize=8)
+    plt.rc('xtick', labelsize=7)
+    plt.rc('ytick', labelsize=7)
     plt.rc('figure', figsize=(13, 5))
 
     plt.bar(labels, time, width=0.5)

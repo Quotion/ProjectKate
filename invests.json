@@ -1,17 +1,17 @@
 {
      "first_company": {
           "name": "ProjectINC",
-          "percent_of_lucky": 32,
-          "share_price": 3.84
+          "percent_of_lucky": 64,
+          "share_price": 1.53
      },
      "second_company": {
           "name": "RiderCorp",
-          "percent_of_lucky": 31,
-          "share_price": 56.99
+          "percent_of_lucky": 45,
+          "share_price": 22.6
      },
      "third_company": {
           "name": "UnionStd",
-          "percent_of_lucky": 45,
-          "share_price": 14.87
+          "percent_of_lucky": 41,
+          "share_price": 89.85
      }
 }

@@ -139,7 +139,7 @@ async def purge(ctx, amount):
 async def roulette(ctx, win, thing):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     embed = discord.Embed(colour=discord.Colour.from_rgb(65, 115, 0))
-    embed.set_author(name=f"Сегодня ваш выигрышь составляет {win} {thing} ")
+    embed.set_author(name=f"Сегодня ваш выигрыш составляет {win} {thing} ")
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
 
