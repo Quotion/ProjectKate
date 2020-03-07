@@ -63,8 +63,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
             user.execute("SELECT guild_id, promocode, bank_info FROM info WHERE NOT (promocode ->> 'code'::text) = '0'::text")
             data = user.fetchall()
             if not data:
-                raise TypeError
-        except TypeError as error:
+                raise IndexError
+        except IndexError as error:
             pass
         except Exception as error:
             self.logger.error(error)
@@ -119,7 +119,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 1}), ctx.guild.id))
                 conn.commit()
                 await ctx.send(promo_on.format(ctx.author.mention, self.client.command_prefix[0]))
-        except TypeError as error:
+        except IndexError as error:
             self.logger.error(error)
         except Exception as error:
             self.logger.error(error)
@@ -143,7 +143,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 0}), ctx.guild.id))
                 conn.commit()
                 await ctx.send(promo_off.format(ctx.author.mention, self.client.command_prefix[0]))
-        except TypeError as error:
+        except IndexError as error:
             self.logger.error(error)
         except Exception as error:
             self.logger.error(error)
@@ -196,7 +196,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                 avatar_url=user_ctx.avatar_url,
                                                                 mention=user_ctx.mention,
                                                                 guild_name=ctx.guild.name))
-        except TypeError as error:
+        except IndexError as error:
             self.logger.error(error)
 
         finally:
@@ -424,7 +424,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def static(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             pass
-        
+
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
         user.execute("SELECT steamid FROM users WHERE \"discordID\" = %s", [ctx.author.id])
@@ -448,7 +448,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 return
 
             image = open("statistics.png", 'rb')
-            await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time}"
+            await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time.replace("day", "дн.")}"
                            f"\nВот список составов, в которых вы находились:\n```" +
                            '\n'.join([x for x in labels]) + "```"
                            "\nГрафик ниже предоставит вам дополнительную информацию:",

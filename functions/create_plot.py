@@ -93,6 +93,16 @@ async def create_figure(data):
 
     plt.close()
 
-    all_time = str(datetime.datetime.fromtimestamp(all_time).strftime("%H:%M:%S"))
+    all_time = datetime.timedelta(seconds=all_time)
+
+    if all_time.find("days") != -1:
+        all_time = all_time.replace("days", "дн")
+    else:
+        all_time = all_time.replace("day", "дн")
+
+    if all_time.find("weeks") != -1:
+        all_time = all_time.replace("weeks", "нед")
+    else:
+        all_time = all_time.replace("week", "нед")
 
     return text, all_time

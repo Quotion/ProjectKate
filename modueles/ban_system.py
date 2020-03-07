@@ -291,6 +291,8 @@ class Ban(commands.Cog, name="Система банов"):
             var = user.fetchone()[0]
         except TypeError:
             await ctx.send(account_not_exist.format(ctx.author.mention, self.client.command_prefix[0]))
+        except IndexError:
+            await ctx.send(account_not_exist.format(ctx.author.mention, self.client.command_prefix[0]))
         except Exception as error:
             await ctx.send(something_went_wrong)
             self.logger.error(error)
