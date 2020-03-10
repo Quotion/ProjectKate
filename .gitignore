@@ -2,4 +2,6 @@
 /Procfile
 /requirements.txt
 /functions/info
-/invests.jsonк
+/invests.json
+/modueles/credentials.json
+/modueles/spreadsheetid

@@ -359,3 +359,18 @@ async def share(ctx, info):
                     inline=False)
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
+
+async def poll(ctx, quest, all_time, answers):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+
+    simbols = [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":ten:"]
+    things = list()
+
+    for answer, i in zip(answers, range(0, 9)):
+        things.append(f"{simbols[i]} {answer}")
+
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name=quest)
+    embed.description = '\n'.join([thing for thing in things])
+    embed.set_footer(text=f"Время начала: {now.strftime('%H:%M %d.%m.%Y')} | Сделал: {ctx.author.nick}")
+    return embed

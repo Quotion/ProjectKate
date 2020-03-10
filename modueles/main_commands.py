@@ -54,7 +54,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
             return True
 
-    @tasks.loop(minutes=456.0)
+    @tasks.loop(minutes=873.0)
     async def generate_promo(self):
         data, conn, user = None, None, None
 
@@ -448,7 +448,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 return
 
             image = open("statistics.png", 'rb')
-            await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time.replace("day", "дн.")}"
+            await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time}"
                            f"\nВот список составов, в которых вы находились:\n```" +
                            '\n'.join([x for x in labels]) + "```"
                            "\nГрафик ниже предоставит вам дополнительную информацию:",
@@ -460,6 +460,22 @@ class MainCommands(commands.Cog, name="Основные команды"):
             os.remove("statistics.png")
         except PermissionError as error:
             self.logger.error(error)
+
+    @commands.command(name="выбор", help="<префикс>выбор <вопрос> <+1> <+2>...")
+    async def polls(self, ctx):
+        message = ctx.message.content.split()
+        answers = ctx.message.content.split("+")
+        quest, time = "", 0
+        for i in range(1, len(message)):
+            if message[i + 1].find("+") == -1:
+                quest += message[i] + " "
+            else:
+                break
+        answers = answers[1:len(answers)]
+        msg = await ctx.send(embed=await functions.embeds.poll(ctx, quest, time, answers))
+
+        for i in range(1, len(answers) + 1):
+            await msg.add_reaction(f"{i}\N{combining enclosing keycap}")
 
     @commands.command(name="сервер", help="<префикс>сервер")
     async def server_info(self, ctx):

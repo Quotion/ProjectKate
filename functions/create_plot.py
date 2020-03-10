@@ -93,7 +93,7 @@ async def create_figure(data):
 
     plt.close()
 
-    all_time = datetime.timedelta(seconds=all_time)
+    all_time = str(datetime.timedelta(seconds=all_time))
 
     if all_time.find("days") != -1:
         all_time = all_time.replace("days", "дн")

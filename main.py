@@ -8,6 +8,7 @@ from modueles.addchannels import AddChannels
 from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
 from modueles.invests import Invests
+from modueles.rprequest import RPrequest
 import discord
 import logging
 import json
@@ -37,6 +38,7 @@ class Katherine(discord.Client):
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
         self.client.add_cog(Invests(client))
+        self.client.add_cog(RPrequest(client))
 
     def on_ready(self):
 
