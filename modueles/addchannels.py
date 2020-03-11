@@ -33,6 +33,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
         return commands.check(predicate)
 
     @commands.command(name="основной", help="<префикс>основной <хайлайт канала>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def main_channel(self, ctx):
@@ -62,6 +63,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             self.logger.info("User entered incorrect data about guild channel: it's empty.")
 
     @commands.command(name='новости', help="<префикс>новости <хайлайт канала>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def news(self, ctx):
@@ -92,6 +94,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             self.logger.info("User entered incorrect data about guild channel: it's empty.")
 
     @commands.command(name='логи', help="<префикс>логи <хайлайт канала>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def log(self, ctx):

@@ -71,7 +71,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         else:
             for item in data:
 
-                channel = self.client.get_guild(int(item[0])).system_channel
+                # channel = self.client.get_guild(int(item[0])).system_channel
 
                 promo, win, thing = None, None, None
                 comment = random.choice(promo_event)
@@ -103,6 +103,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
 
     @commands.command(name='вкл_промо', help="<префикс>вкл_промо")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def promo_on(self, ctx):
@@ -127,6 +128,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name='выкл_промо', help="<префикс>вкл_промо")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def promo_off(self, ctx):
@@ -152,6 +154,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
 
     @commands.command(name='профиль', help="<префикс>профиль <Disocrd или ничего>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def profile(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             pass
@@ -203,6 +206,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name='удали', help="<префикс>удали <количество сообщений>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def delete(self, ctx):
@@ -223,6 +227,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await channel.send(embed=await functions.embeds.purge(ctx, int(msg[1])))
 
     @commands.command(name="промокод", help="<префикс>промокод <6 цифр>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def promocode(self, ctx, *, promo: str):
         if await MainCommands.profile_exist(self, ctx):
             pass
@@ -270,6 +275,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
 
     @commands.command(name='рулетка', help="<префикс>рулетка")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def roulette(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             pass
@@ -309,6 +315,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         self.pgsql.close_conn(conn, user)
 
     @commands.command(name='топ', help="<префикс>топ")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def top(self, ctx):
         conn, user = None, None
 
@@ -341,6 +348,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name='продать', help="<префикс>продать <количество рейтинга>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def sale(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             pass
@@ -421,6 +429,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         await ctx.send(embed=await functions.embeds.swap(ctx, int(msg[1] / 4), msg[1], swaps))
 
     @commands.command(name="статистика", help="<префикс>статистика")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def static(self, ctx):
         if await MainCommands.profile_exist(self, ctx):
             pass
@@ -461,17 +470,21 @@ class MainCommands(commands.Cog, name="Основные команды"):
         except PermissionError as error:
             self.logger.error(error)
 
-    @commands.command(name="выбор", help="<префикс>выбор <вопрос> <+1> <+2>...")
+    @commands.command(name="выбор", help="<префикс>выбор <вопрос> <+1> <+2>...<+9>.")
+    @commands.cooldown(1, 60, commands.BucketType.user)
     async def polls(self, ctx):
         message = ctx.message.content.split()
         answers = ctx.message.content.split("+")
         quest, time = "", 0
         for i in range(1, len(message)):
-            if message[i + 1].find("+") == -1:
+            if message[i].find("+") == -1:
                 quest += message[i] + " "
             else:
                 break
         answers = answers[1:len(answers)]
+        if len(answers) > 9:
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, answers_out_of_range))
+            return
         msg = await ctx.send(embed=await functions.embeds.poll(ctx, quest, time, answers))
 
         for i in range(1, len(answers) + 1):
@@ -490,5 +503,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send(not_enough_words.format(ctx.author.mention, ctx.message.content))
         elif isinstance(error, commands.CommandNotFound):
             await ctx.send(command_not_found.format(ctx.author.mention, ctx.message.content))
+        elif isinstance(error, commands.CommandOnCooldown):
+            await ctx.send(cooldown.format(ctx.author.mention, int(error.retry_after)))
         else:
             self.logger.error(error)

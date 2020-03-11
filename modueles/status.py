@@ -22,6 +22,7 @@ class Status(commands.Cog, name="Статус серверов"):
         self.pgsql = PgSQLConnection()
 
     @commands.command(name="проверь_статус", help="<префикс>проверь_статус")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
     async def check_status(self, ctx):
         conn, user = self.pgsql.connect()
@@ -175,6 +176,7 @@ class Status(commands.Cog, name="Статус серверов"):
             self.logger.error(error)
 
     @commands.command(name='статус', help="<префикс>статус <хайлайт канала>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def main_channel(self, ctx):
@@ -213,6 +215,7 @@ class Status(commands.Cog, name="Статус серверов"):
         self.pgsql.close_conn(conn, user)
 
     @commands.command(help="<префикс>ip <ip:port>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def ip(self, ctx):
@@ -272,6 +275,7 @@ class Status(commands.Cog, name="Статус серверов"):
         self.pgsql.close_conn(conn, user)
 
     @commands.command(name="удалить_статус", help="<префикс>удалить_статус")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def delete_status(self, ctx):
@@ -309,6 +313,10 @@ class Status(commands.Cog, name="Статус серверов"):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
+
+        if str(payload.emoji) != "🔄":
+            return
+
         conn, user = self.pgsql.connect()
         guild_id = payload.guild_id
         user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
@@ -330,7 +338,7 @@ class Status(commands.Cog, name="Статус серверов"):
             if key == "channel":
                 pass
 
-            elif info['status'][key]['message_id'] == message.id and str(payload.emoji) == "🔄" \
+            elif info['status'][key]['message_id'] == message.id \
                     and info['status'][key]['time'] + 60 < int(datetime.datetime.today().timestamp()) \
                     and payload.user_id != self.client.user.id:
                 await message.remove_reaction(payload.emoji, member)
@@ -343,7 +351,7 @@ class Status(commands.Cog, name="Статус серверов"):
                 except Exception as error:
                     self.logger.error(error)
                 return
-            elif info['status'][key]['message_id'] == message.id and str(payload.emoji) == "🔄" \
+            elif info['status'][key]['message_id'] == message.id \
                     and payload.user_id != self.client.user.id:
                 await message.remove_reaction(payload.emoji, member)
 

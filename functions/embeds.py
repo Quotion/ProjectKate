@@ -270,7 +270,7 @@ async def invest_help(ctx):
                     inline=False)
     embed.add_field(name="Инвистиции",
                     value="⠀⠀⠀⠀Наконец, подошли к самому главному, это инвистиции. Итак, для начало, нужно выбрать "
-                          "куда вкладывать, иначе, смысла в получении прибыли нет. При вводе команды к!ивест_статус, "
+                          "куда вкладывать, иначе, смысла в получении прибыли нет. При вводе команды `к!ивест_статус`, "
                           "вам выводится состояние компаний и некоторая дополнительная информация, которая может "
                           "подсказать вам, куда лучше всего направить свой капитал. Далее вы просто вводите "
                           "команду `к!купить_акции` <название компании/количество акций> и просто ждёте увелечения "
@@ -372,5 +372,29 @@ async def poll(ctx, quest, all_time, answers):
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=quest)
     embed.description = '\n'.join([thing for thing in things])
-    embed.set_footer(text=f"Время начала: {now.strftime('%H:%M %d.%m.%Y')} | Сделал: {ctx.author.nick}")
+    embed.set_footer(text=f"Время создания: {now.strftime('%H:%M %d.%m.%Y')} | Сделал: {ctx.author.nick}")
+    return embed
+
+
+async def all_members(ctx, all_data):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name="Участники РП-сессии")
+    things = list()
+    print(all_data)
+    for data in all_data:
+        if "дцх" in data:
+            things.append(f"{data[0]}: `ДЦХ` {data[5]}-й линии")
+    for data in all_data:
+        if "дсцп" in data:
+            things.append(f"{data[0]}: `ДСЦП` {data[5]}-й линии по станции `{data[3]}`")
+    for data in all_data:
+        if "маневровый" in data:
+            things.append(f"{data[0]}: `Маневровый машинист` {data[5]}-й линии по станции `{data[4]}`")
+    for data in all_data:
+        if "машинист" in data:
+            things.append(f"{data[0]}: `Машинист` {data[5]}-й линии. Номер состава: `{data[3]}`")
+    embed.description = '\n'.join([thing for thing in things])
+    embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed

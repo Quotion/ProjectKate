@@ -124,10 +124,12 @@ class Invests(commands.Cog, name="Инвестиции"):
             json.dump(info, file, indent=5)
 
     @commands.command(name="инвест_помощь", help="<префикс>инвест_помощь")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def invest_help(self, ctx):
         await ctx.send(embed=await invest_help(ctx))
 
     @commands.command(name="имя_банка", help="<префикс>имя_банка <новое имя банка>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
     async def name_bank(self, ctx, *, name: str):
         conn, user, bank = None, None, None
@@ -154,6 +156,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="имя_валюты", help="<префикс>имя_валюты <новое имя валюты>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
     async def name_currency(self, ctx, *, name: str):
         conn, user, bank = None, None, None
@@ -180,6 +183,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="открыть_счет", help="<префикс>открыть_счет", aliases=["открыть_счёт"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def open_bill(self, ctx):
         conn, user = None, None
         try:
@@ -212,6 +216,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="счет", help="<префикс>счет", aliases=["счёт"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def bill(self, ctx):
         conn, user, info, bank = None, None, None, None
         try:
@@ -235,6 +240,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="закрыть_счет", help="<префикс>закрыть_счет", aliases=["закрыть_счёт"])
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def close_bill(self, ctx):
         conn, user = None, None
         try:
@@ -253,6 +259,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="банк", help="<префикс>банк")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def bank(self, ctx):
         conn, user, all_amount = None, None, .0
         try:
@@ -278,6 +285,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="положить", help="<префикс>положить <количество ВС>")
+    @commands.cooldown(1, 15, commands.BucketType.user)
     async def put_in_bank(self, ctx, *, amount: str):
 
         if not amount.isdigit():
@@ -321,6 +329,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="перевести", help="<префикс>перевести <Disocrd> <количество ВС>")
+    @commands.cooldown(1, 15, commands.BucketType.user)
     async def transaction(self, ctx, *, data: str):
         conn, user = None, None
 
@@ -363,6 +372,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="снять", help="<префикс>снять <количество ВС>")
+    @commands.cooldown(1, 15, commands.BucketType.user)
     async def get_from_bank(self, ctx, *, amount: str):
         if not amount.isdigit():
             await ctx.send(not_a_number.format(ctx.author.mention, self.client.command_prefix[0]))
@@ -403,6 +413,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="инвест_статус", help="<префикс>инвест_статусы")
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def invest_status(self, ctx):
         with open("invests.json", "r", encoding="utf8") as file:
             info = json.load(file)
@@ -410,6 +421,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             await ctx.send(embed=await invests_status(ctx, info))
 
     @commands.command(name="купить_акции", help="<префикс>купить_акции <количество акций>")
+    @commands.cooldown(1, 60, commands.BucketType.user)
     async def buy_share(self, ctx, *, data: str):
         data = data.split()
 
@@ -507,6 +519,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="акции", help="<префикс>акции")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def share(self, ctx):
         conn, user = None, None
 
@@ -529,6 +542,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="продать_акции", help="<префикс>продать_акции <количество акций>")
+    @commands.cooldown(1, 60, commands.BucketType.user)
     async def sale_share(self, ctx, *, data: str):
         data = data.split()
 
@@ -621,6 +635,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="курс", help="<префикс>курс")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def course(self, ctx):
         course = self.__check_course__()
         embed = discord.Embed(colour=discord.Colour.default())

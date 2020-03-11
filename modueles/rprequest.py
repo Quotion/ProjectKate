@@ -28,23 +28,62 @@ class Sheet(object):
         service = Sheet.connect(self)
 
         values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
-                                                     range="I2:I6",
+                                                     range="'параметры'!B2:B4",
                                                      majorDimension="ROWS"
                                                      ).execute()
 
         return values['values']
 
+    def get_data(self, id_cloumn):
+        service = Sheet.connect(self)
+        roles = list()
+
+        values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
+                                                     range=f"'request'!{chr(65 + id_cloumn)}2:{chr(65 + id_cloumn)}30",
+                                                     majorDimension="COLUMNS"
+                                                     ).execute()
+
+        for value in values['values'][0]:
+            if value == "" or not value:
+                break
+            else:
+                roles.append(value)
+
+        return roles
+
+    def get_all_data(self):
+        service = Sheet.connect(self)
+
+        values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
+                                                     range="'request'!A1:F30",
+                                                     majorDimension="ROWS"
+                                                     ).execute()
+
+        values = values['values']
+
+        for array, i in zip(values, range(0, len(values))):
+            if array[0] == "":
+                values = values[0:i]
+                break
+
+        return values
+
     def append_to_sheet(self, values):
         service = Sheet.connect(self)
 
         service.spreadsheets().values().append(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
-                                               range="'request'!A1",
+                                               range="'request'!A1:F1",
                                                body=values,
-                                               insertDataOption="INSERT_ROWS",
+                                               insertDataOption="OVERWRITE",
                                                valueInputOption="RAW"
                                                ).execute()
 
+    def delete_info(self, id_row):
+        service = Sheet.connect(self)
 
+        service.spreadsheets().values().clear(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
+                                              range=f"'request'!A{id_row}:F{id_row}"
+                                              ).execute()
 
 
 class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
@@ -89,11 +128,10 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                 return True
 
     @commands.command(name="заявка", help="<префикс>заявка <ник> <роль> <номер/ст.> <линия>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def request(self, ctx):
-        values = self.sheet.get_parameters()
-
         if await RPrequest.profile_exist(self, ctx):
-            ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
             return
 
         try:
@@ -102,32 +140,74 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
             user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {ctx.author.id}")
             steamid = user.fetchone()[0]
             if steamid == "None" or not steamid:
-                ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
-                return
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+                raise Warning
             elif steamid:
+                values = self.sheet.get_parameters()
                 data = ctx.message.content.split()
-                if data[2].lower() == "дцх":
-                    values = {"values": [[data[1], steamid, data[2], "-", data[3]]]}
-                    append_to_sheet(values)
-                elif data[2].lower() == "дсцп" or data[2].lower() == "маневровый":
-                    values = {"values": [[data[1], steamid, data[2], "-", data[3]]]}
-                    append_to_sheet(values)
-                elif data[2].lower() == "машинист":
-                    values = {"values": [[data[1], steamid, data[2], data[3], "-"]]}
-                    append_to_sheet(values)
-                else:
-                    ctx.send(embed=await functions.embeds.description(ctx.author.mention, role_dont_exist))
 
+                if steamid in self.sheet.get_data(1):
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, already_in_rp))
+                    raise Warning
+
+                if len(data) < 5:
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, not_enough_words))
+                    raise Warning
+
+                if data[2].lower() != "дцх" and data[2].lower() != "дсцп" and data[2].lower() != "маневровый" and data[2].lower() != "машинист":
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, role_dont_exist))
+                    raise Warning
+
+                if int(data[4]) > int(values[0][0]) or int(data[4]) <= 0:
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, line_not_exist))
+                    raise Warning
+
+                if data[2].lower() == "дцх":
+                    if int(values[1][0]) <= self.sheet.get_data(2).count("дцх"):
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dch_already_taken))
+                        raise Warning
+                    else:
+                        values = {"values": [[data[1], steamid, data[2].lower(), "-", "-", data[4]]]}
+                        self.sheet.append_to_sheet(values)
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_add))
+                        raise Warning
+
+                if data[2].lower() == "маневровый":
+                    if int(values[1][0]) == 0:
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting))
+                        raise Warning
+                    elif int(values[1][0]) <= self.sheet.get_data(2).count("маневровый"):
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting_already_exist))
+                    else:
+                        values = {"values": [[data[1], steamid, data[2].lower(), "-", data[3], data[4]]]}
+                        self.sheet.append_to_sheet(values)
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_add))
+                        raise Warning
+
+
+                if data[2].lower() == "машинист":
+                    if data[3] not in self.sheet.get_data(3):
+                        values = {"values": [[data[1], steamid, data[2], data[3], "-", data[4]]]}
+                        self.sheet.append_to_sheet(values)
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_add))
+                        raise Warning
+                    else:
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_already_taken))
+                        raise Warning
+
+        except Warning:
+            pass
         except Exception as error:
             self.logger.error(error)
         finally:
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="удалить_заявку", help="<префикс>удалить_заявку (<хайлайт игрока>)")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def delete_request(self, ctx):
 
         if await RPrequest.profile_exist(self, ctx):
-            ctx.send(embed=await functions.embeds.description(ctx.author.mention, dont_write))
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dont_write))
             return
 
         try:
@@ -136,19 +216,29 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
             user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {ctx.author.id}")
             steamid = user.fetchone()[0]
             if steamid == "None" or not steamid:
-                ctx.send(embed=await functions.embeds.description(ctx.author.mention, dont_write))
-                return
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dont_write))
+                raise Warning
             elif steamid:
-                service.spreadsheets().values().get(spreadsheetId=spreadsheet_id,
-                                                    range="'request'!A")
+                if steamid in self.sheet.get_data(1):
+                    self.sheet.delete_info(self.sheet.get_data(1).index(steamid) + 2)
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_delete))
+                    raise Warning
+                else:
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dont_write))
+                    raise Warning
+
+        except Warning:
+            pass
         except Exception as error:
             self.logger.error(error)
         finally:
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="участники", help="<префикс>участники")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def members(self, ctx):
-        pass
+        all_data = self.sheet.get_all_data()
+        await ctx.send(embed=await functions.embeds.all_members(ctx, all_data))
 
 # values = service.spreadsheets().values().append(
 #          spreadsheetId=SAMPLE_SPREADSHEET_ID,

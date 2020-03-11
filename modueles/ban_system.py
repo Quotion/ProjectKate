@@ -34,6 +34,7 @@ class Ban(commands.Cog, name="Система банов"):
         return ids
 
     @commands.command(name='бан', help="<префикс>бан <SteamID или Discord> <мин.> <причина>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
     async def ban(self, ctx):
         message = ctx.message.content.split()
@@ -162,6 +163,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.mysql.close_conn(database, gamer)
 
     @commands.command(name='разбан', help="<префикс>разбан <SteamID или Discord>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
     async def unban(self, ctx):
 
@@ -220,6 +222,7 @@ class Ban(commands.Cog, name="Система банов"):
             self.logger.error(error)
 
     @commands.command(name='проверь', help="<префикс>проверь <SteamID, или Discord, или ничего>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def check_ban(self, ctx):
 
         message = ctx.message.content.split()
@@ -279,6 +282,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.mysql.close_conn(database, gamer)
 
     @commands.command(name='синхр', help="<префикс>синхр <SteamID>")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     async def sync(self, ctx):
 
         message = ctx.message.content.split()
@@ -316,6 +320,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.mysql.close_conn(database, gamer)
 
     @commands.command(name="ранг", help="<префикс>ранг <SteamID или Discord> <ранг>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
     async def set_rank(self, ctx):
         try:
@@ -371,6 +376,7 @@ class Ban(commands.Cog, name="Система банов"):
             self.logger.error(error)
 
     @commands.command(name="купить_ранг", help="<префикс>купить_ранг <vip (500000) или premium (1000000)>")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def buy_rank(self, ctx, *, rank: str):
         if rank.lower() != "vip" and rank.lower() != "premium":
             await ctx.send(embed=await functions.embeds.description(ctx.author.mention, role_not_exist))
