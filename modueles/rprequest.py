@@ -11,24 +11,38 @@ from pprint import pprint
 class Sheet(object):
 
     def __init__(self):
+        logger = logging.getLogger("sheet")
+        logger.setLevel(logging.INFO)
+
+        self.logger = logger
+
         self.SAMPLE_SPREADSHEET_ID = None
         with open("modueles/spreadsheetid", "r", encoding="utf") as id:
             self.SAMPLE_SPREADSHEET_ID=str(id.read().splitlines()[0])
         self.CREDEBTIALS_FILE = 'modueles/credentials.json'
 
     def connect(self):
-        credentials = ServiceAccountCredentials.from_json_keyfile_name(
-                      self.CREDEBTIALS_FILE,
-                      ['https://www.googleapis.com/auth/spreadsheets',
-                       'https://www.googleapis.com/auth/drive'])
-        httpAuth = credentials.authorize(httplib2.Http())
-        return apiclient.discovery.build('sheets', 'v4', http = httpAuth, cache_discovery=False)
+        try:
+            credentials = ServiceAccountCredentials.from_json_keyfile_name(
+                          self.CREDEBTIALS_FILE,
+                          ['https://www.googleapis.com/auth/spreadsheets',
+                           'https://www.googleapis.com/auth/drive'])
+            httpAuth = credentials.authorize(httplib2.Http())
+            service = apiclient.discovery.build('sheets', 'v4', http = httpAuth, cache_discovery=False)
+        except Exception as error:
+            self.logger.error(error)
+            return None
+        else:
+            return service
 
     def get_parameters(self):
         service = Sheet.connect(self)
 
+        if not service:
+            return None
+
         values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
-                                                     range="'параметры'!B2:B4",
+                                                     range="'parameters'!B2:B4",
                                                      majorDimension="ROWS"
                                                      ).execute()
 
@@ -36,12 +50,19 @@ class Sheet(object):
 
     def get_data(self, id_cloumn):
         service = Sheet.connect(self)
+
+        if not service:
+            return None
+
         roles = list()
 
         values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
                                                      range=f"'request'!{chr(65 + id_cloumn)}2:{chr(65 + id_cloumn)}30",
                                                      majorDimension="COLUMNS"
                                                      ).execute()
+
+        if "values" not in values.keys():
+            return []
 
         for value in values['values'][0]:
             if value == "" or not value:
@@ -53,6 +74,9 @@ class Sheet(object):
 
     def get_all_data(self):
         service = Sheet.connect(self)
+
+        if not service:
+            return None
 
         values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
                                                      range="'request'!A1:F30",
@@ -81,6 +105,9 @@ class Sheet(object):
     def delete_info(self, id_row):
         service = Sheet.connect(self)
 
+        if not service:
+            return None
+
         service.spreadsheets().values().clear(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
                                               range=f"'request'!A{id_row}:F{id_row}"
                                               ).execute()
@@ -94,7 +121,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
         self.sheet = Sheet()
 
         logger = logging.getLogger("rprequest")
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG)
 
         self.logger = logger
 
@@ -136,67 +163,89 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
 
         try:
             conn, user = self.pgsql.connect()
+            values = self.sheet.get_parameters()
+            data = ctx.message.content.split()
+
+            if not values:
+                await ctx.send(something_went_wrong)
+                raise Warning
 
             user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {ctx.author.id}")
             steamid = user.fetchone()[0]
+
             if steamid == "None" or not steamid:
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
-                raise Warning
-            elif steamid:
-                values = self.sheet.get_parameters()
-                data = ctx.message.content.split()
-
+                raise Exception("Person not synchronized")
+            else:
                 if steamid in self.sheet.get_data(1):
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, already_in_rp))
-                    raise Warning
+                    raise Warning("# WARNING: Person already on RP")
 
-                if len(data) < 5:
-                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, not_enough_words))
-                    raise Warning
+                if len(data) < 4:
+                    await ctx.send(not_enough_words_to_rp.format(ctx.author.mention, self.client.command_prefix[0]))
+                    raise Warning("# WARNING: Not enough words")
 
                 if data[2].lower() != "дцх" and data[2].lower() != "дсцп" and data[2].lower() != "маневровый" and data[2].lower() != "машинист":
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, role_dont_exist))
-                    raise Warning
-
-                if int(data[4]) > int(values[0][0]) or int(data[4]) <= 0:
-                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, line_not_exist))
-                    raise Warning
+                    raise Warning("# WARNING: Entered role dont exist")
 
                 if data[2].lower() == "дцх":
-                    if int(values[1][0]) <= self.sheet.get_data(2).count("дцх"):
+                    if (int(data[3]) > int(values[0][0])) or (int(data[3]) <= 0):
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, line_not_exist))
+                        raise Warning("# WARNING: Too many lines")
+                    elif int(values[0][0]) <= self.sheet.get_data(2).count("дцх"):
                         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dch_already_taken))
-                        raise Warning
+                        raise Warning("# WARNING: Line already taken")
                     else:
-                        values = {"values": [[data[1], steamid, data[2].lower(), "-", "-", data[4]]]}
-                        self.sheet.append_to_sheet(values)
-                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_add))
-                        raise Warning
+                        full_info = {"values": [[data[1], steamid, data[2].lower(), "-", "-", data[3]]]}
+                        self.sheet.append_to_sheet(full_info)
+                        await ctx.send(success_add_dch.format(ctx.author.mention, data[3]))
+                        raise Warning("# WARNING: Person successfully added on RP")
+
+                if len(data) > 5:
+                    await ctx.send(not_enough_words_to_rp.format(ctx.author.mention, self.client.command_prefix[0]))
+                    raise Warning("# WARNING: Not enough words")
+
+                if (int(data[4]) > int(values[0][0])) or (int(data[4]) <= 0):
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, line_not_exist))
+                    raise Warning("# WARNING: Too many lines")
+
+                if data[2].lower() == "дсцп":
+                    if int(values[2][0]) <= self.sheet.get_data(2).count("дсцп"):
+                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dscp_already_taken))
+                        raise Warning("# WARNING: Role already taken")
+                    else:
+                        full_info = {"values": [[data[1], steamid, data[2].lower(), "-", data[3], data[4]]]}
+                        self.sheet.append_to_sheet(full_info)
+                        await ctx.send(success_add_dscp.format(ctx.author.mention, data[3]))
+                        raise Warning("# WARNING: Person successfully added on RP")
 
                 if data[2].lower() == "маневровый":
                     if int(values[1][0]) == 0:
                         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting))
-                        raise Warning
+                        raise Warning("# WARNING: Shunting driver not on RP")
                     elif int(values[1][0]) <= self.sheet.get_data(2).count("маневровый"):
                         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting_already_exist))
+                        raise Warning("# WARNING: Role already taken")
                     else:
-                        values = {"values": [[data[1], steamid, data[2].lower(), "-", data[3], data[4]]]}
-                        self.sheet.append_to_sheet(values)
-                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_add))
-                        raise Warning
+                        full_info = {"values": [[data[1], steamid, data[2].lower(), "-", data[3], data[4]]]}
+                        self.sheet.append_to_sheet(full_info)
+                        await ctx.send(success_add_shunting_driver.format(ctx.author.mention, data[4], data[3]))
+                        raise Warning("# WARNING: Person successfully added on RP")
 
 
                 if data[2].lower() == "машинист":
                     if data[3] not in self.sheet.get_data(3):
-                        values = {"values": [[data[1], steamid, data[2], data[3], "-", data[4]]]}
-                        self.sheet.append_to_sheet(values)
-                        await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_add))
-                        raise Warning
+                        full_info = {"values": [[data[1], steamid, data[2], data[3], "-", data[4]]]}
+                        self.sheet.append_to_sheet(full_info)
+                        await ctx.send(success_add_driver.format(ctx.author.mention, data[4], data[3]))
+                        raise Warning("# WARNING: Person successfully added on RP")
                     else:
                         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_already_taken))
-                        raise Warning
+                        raise Warning("# WARNING: Number already taken")
 
-        except Warning:
-            pass
+        except Warning as warning:
+            self.logger.warning(warning)
         except Exception as error:
             self.logger.error(error)
         finally:
@@ -238,14 +287,9 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def members(self, ctx):
         all_data = self.sheet.get_all_data()
-        await ctx.send(embed=await functions.embeds.all_members(ctx, all_data))
 
-# values = service.spreadsheets().values().append(
-#          spreadsheetId=SAMPLE_SPREADSHEET_ID,
-#          range="'Лист1'!A1",
-#          body={
-#                "values": [["Nikolay", "машинист", "32 маршрут"]]
-#          },
-#          insertDataOption="INSERT_ROWS",
-#          valueInputOption="RAW"
-# ).execute()
+        if not all_data:
+            await ctx.send(something_went_wrong)
+            raise Warning
+
+        await ctx.send(embed=await functions.embeds.all_members(ctx, all_data))
