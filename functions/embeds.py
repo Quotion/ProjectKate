@@ -382,19 +382,18 @@ async def all_members(ctx, all_data):
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Участники РП-сессии")
     things = list()
-    print(all_data)
     for data in all_data:
         if "дцх" in data:
-            things.append(f"{data[0]}: `ДЦХ` {data[5]}-й линии")
+            things.append(f"`ДЦХ` {data[5]}-й линии: {data[0]}")
     for data in all_data:
         if "дсцп" in data:
-            things.append(f"{data[0]}: `ДСЦП` {data[5]}-й линии по станции `{data[3]}`")
+            things.append(f"`ДСЦП` {data[5]}-й линии по станции `{data[4]}`: {data[0]}")
     for data in all_data:
         if "маневровый" in data:
-            things.append(f"{data[0]}: `Маневровый машинист` {data[5]}-й линии по станции `{data[4]}`")
+            things.append(f"`Маневровый машинист` {data[5]}-й линии по станции `{data[4]}`: {data[0]}")
     for data in all_data:
         if "машинист" in data:
-            things.append(f"{data[0]}: `Машинист` {data[5]}-й линии. Номер состава: `{data[3]}`")
+            things.append(f"`Машинист` {data[5]}-й линии. Номер состава: `{data[3]}`: {data[0]}")
     embed.description = '\n'.join([thing for thing in things])
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed

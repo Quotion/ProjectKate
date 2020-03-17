@@ -1,4 +1,4 @@
-import datetime
+ctx.authorimport datetime
 import logging
 import os
 import json
@@ -28,10 +28,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         self.generate_promo.start()
 
-    async def profile_exist(self, ctx):
+    async def profile_exist(self, author):
         conn, user = self.pgsql.connect()
         try:
-            user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.author.id])
+            user.execute('SELECT * FROM users WHERE "discordID" = %s', [author.id])
             var = user.fetchall()[0]
             self.pgsql.close_conn(conn, user)
             return False
@@ -44,9 +44,9 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 user.execute(
                     'INSERT INTO users ("discordID", rating, money, goldMoney, "chanceRol", "dateRol", nick) '
                     'VALUES(%s, %s, %s, %s, %s, %s, %s)',
-                    (ctx.author.id, 0, 0, 0, 1, now.day - 1, ctx.author.name))
+                    (author.id, 0, 0, 0, 1, now.day - 1, ctx.author.name))
                 conn.commit()
-                self.logger.info("Profile of {} successfully created.".format(ctx.author.name))
+                self.logger.info("Profile of {} successfully created.".format(author.name))
             except Exception as error:
                 await ctx.send(something_went_wrong)
                 self.logger.info(error)
@@ -153,10 +153,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
 
 
-    @commands.command(name='профиль', help="<префикс>профиль <Disocrd или ничего>")
+    @commands.command(name='профиль', help="<префикс>профиль <Discord или ничего>")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def profile(self, ctx):
-        if await MainCommands.profile_exist(self, ctx):
+        if await MainCommands.profile_exist(self, ctx.author):
             pass
 
         conn, user = self.pgsql.connect()
@@ -166,6 +166,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
         name_of_currency = user.fetchone()[0]['char_of_currency']
 
         if len(ctx.message.content.split()) == 2 and len(ctx.message.mentions) == 1:
+            if await MainCommands.profile_exist(self, self.client.get_user(ctx.message.mentions[0].id)):
+                pass
             user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.message.mentions[0].id])
             user_ctx = self.client.get_user(ctx.message.mentions[0].id)
         elif len(ctx.message.content.split()) == 1:
@@ -229,7 +231,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name="промокод", help="<префикс>промокод <6 цифр>")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def promocode(self, ctx, *, promo: str):
-        if await MainCommands.profile_exist(self, ctx):
+        if await MainCommands.profile_exist(self, ctx.author):
             pass
 
         if not promo.isdigit or not len(promo) == 6:
@@ -277,7 +279,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name='рулетка', help="<префикс>рулетка")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def roulette(self, ctx):
-        if await MainCommands.profile_exist(self, ctx):
+        if await MainCommands.profile_exist(self, ctx.author):
             pass
 
         conn, user = self.pgsql.connect()
@@ -350,7 +352,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name='продать', help="<префикс>продать <количество рейтинга>")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def sale(self, ctx):
-        if await MainCommands.profile_exist(self, ctx):
+        if await MainCommands.profile_exist(self, ctx.author):
             pass
 
         conn, user = self.pgsql.connect()
@@ -392,7 +394,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
     @commands.command(name='обмен', help="<префикс>обмен <количетсво ВС>")
     async def swap(self, ctx):
-        if await MainCommands.profile_exist(self, ctx):
+        if await MainCommands.profile_exist(self, ctx.author):
             pass
 
         msg = ctx.message.content.split()
@@ -431,7 +433,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name="статистика", help="<префикс>статистика")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def static(self, ctx):
-        if await MainCommands.profile_exist(self, ctx):
+        if await MainCommands.profile_exist(self, ctx.author):
             pass
 
         conn, user = self.pgsql.connect()
@@ -481,6 +483,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 quest += message[i] + " "
             else:
                 break
+
+        if quest == "":
+            await ctx.send(question_not_post.format(ctx.author.mention, self.client.command_prefix[0]))
+            return
+
         answers = answers[1:len(answers)]
         if len(answers) > 9:
             await ctx.send(embed=await functions.embeds.description(ctx.author.mention, answers_out_of_range))

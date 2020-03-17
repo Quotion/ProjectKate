@@ -197,7 +197,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dch_already_taken))
                         raise Warning("# WARNING: Line already taken")
                     else:
-                        full_info = {"values": [[data[1], steamid, data[2].lower(), "-", "-", data[3]]]}
+                        full_info = {"values": [[data[1], steamid, "дцх", "-", "-", data[3]]]}
                         self.sheet.append_to_sheet(full_info)
                         await ctx.send(success_add_dch.format(ctx.author.mention, data[3]))
                         raise Warning("# WARNING: Person successfully added on RP")
@@ -215,7 +215,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dscp_already_taken))
                         raise Warning("# WARNING: Role already taken")
                     else:
-                        full_info = {"values": [[data[1], steamid, data[2].lower(), "-", data[3], data[4]]]}
+                        full_info = {"values": [[data[1], steamid, "дсцп", "-", data[3], data[4]]]}
                         self.sheet.append_to_sheet(full_info)
                         await ctx.send(success_add_dscp.format(ctx.author.mention, data[3]))
                         raise Warning("# WARNING: Person successfully added on RP")
@@ -228,7 +228,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting_already_exist))
                         raise Warning("# WARNING: Role already taken")
                     else:
-                        full_info = {"values": [[data[1], steamid, data[2].lower(), "-", data[3], data[4]]]}
+                        full_info = {"values": [[data[1], steamid, "маневровый", "-", data[3], data[4]]]}
                         self.sheet.append_to_sheet(full_info)
                         await ctx.send(success_add_shunting_driver.format(ctx.author.mention, data[4], data[3]))
                         raise Warning("# WARNING: Person successfully added on RP")
@@ -236,7 +236,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
 
                 if data[2].lower() == "машинист":
                     if data[3] not in self.sheet.get_data(3):
-                        full_info = {"values": [[data[1], steamid, data[2], data[3], "-", data[4]]]}
+                        full_info = {"values": [[data[1], steamid, "машинист", data[3], "-", data[4]]]}
                         self.sheet.append_to_sheet(full_info)
                         await ctx.send(success_add_driver.format(ctx.author.mention, data[4], data[3]))
                         raise Warning("# WARNING: Person successfully added on RP")
@@ -247,6 +247,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
         except Warning as warning:
             self.logger.warning(warning)
         except Exception as error:
+            await ctx.send(you_not_right.format(ctx.author.mention, self.client.command_prefix[0]))
             self.logger.error(error)
         finally:
             self.pgsql.close_conn(conn, user)

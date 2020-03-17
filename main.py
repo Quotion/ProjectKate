@@ -169,16 +169,19 @@ class Katherine(discord.Client):
                 try:
                     plot = io.open("changelog.txt", "rb")
                     msg_changes = discord.File(plot, filename="Message_changes.txt")
-                    msg_changes.close()
-                    plot.close()
                 except Exception as error:
                     logging.error(error)
+                finally:
+                    plot.close()
 
                 if msg_changes:
                     await channel.send(embed=embed, file=msg_changes)
                     os.remove("changelog.txt")
+                    msg_changes.close()
                 else:
                     await channel.send(embed=embed)
+                    os.remove("changelog.txt")
+                    msg_changes.close()
 
             self.pgsql.close_conn(conn, user)
 
@@ -258,7 +261,7 @@ class Katherine(discord.Client):
             if message.author.id == self.client.user.id:
                 return
             elif "коллекция" in message.content:
-                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1574575898")
+                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1735486737")
             else:
                 await self.client.process_commands(message)
 
