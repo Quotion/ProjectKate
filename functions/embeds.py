@@ -51,7 +51,7 @@ async def message_edit(before, after):
     if check:
         with io.open("changelog.txt", "w", encoding='utf8') as file:
             file.write("Сообщение до:\n" + before.content +
-                       "\n\n\n" +
+                       "\n\n\n\n" +
                        "Сообщение после:\n" + after.content)
 
     embed.set_author(name=f"В {now.strftime('%H:%M')} было изменено сообщение, отправленное {before.author.name}.",
@@ -118,7 +118,7 @@ async def raw_edit_message(message):
                           f"отправленное в канале {message.channel.name}.",
                      icon_url=message.guild.icon_url)
     embed.add_field(name='Информация:',
-                    value=f'**Текст сообщения:**`{message.content}`'
+                    value=f'**Текст сообщения:**`{message.content[0:100] + "..."}`'
                           f'\n**ID сообщения:**`{message.id}`',
                     inline=False)
     embed.set_thumbnail(url='http://cdn.onlinewebfonts.com/svg/img_355098.png')
@@ -375,25 +375,30 @@ async def poll(ctx, quest, all_time, answers):
     embed.set_footer(text=f"Время создания: {now.strftime('%H:%M %d.%m.%Y')} | Сделал: {ctx.author.nick}")
     return embed
 
-
 async def all_members(ctx, all_data):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Участники РП-сессии")
+
+    if len(all_data) == 1:
+        embed.description = "Здесь моглы бы быть ваша реклама, но тут её нет."
+        embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+        return embed
+
     things = list()
     for data in all_data:
         if "дцх" in data:
-            things.append(f"`ДЦХ` {data[5]}-й линии: {data[0]}")
+            things.append(f"`ДЦХ` {data[0]} по {data[5]}-й линии")
     for data in all_data:
         if "дсцп" in data:
-            things.append(f"`ДСЦП` {data[5]}-й линии по станции `{data[4]}`: {data[0]}")
+            things.append(f"`ДСЦП` {data[0]} по станции `{data[4]}`")
     for data in all_data:
         if "маневровый" in data:
-            things.append(f"`Маневровый машинист` {data[5]}-й линии по станции `{data[4]}`: {data[0]}")
+            things.append(f"`Маневровый машинист` {data[0]} по станции `{data[4]}`")
     for data in all_data:
         if "машинист" in data:
-            things.append(f"`Машинист` {data[5]}-й линии. Номер состава: `{data[3]}`: {data[0]}")
+            things.append(f"`Машинист` {data[0]}. Номер состава: `{data[3]}`")
     embed.description = '\n'.join([thing for thing in things])
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed

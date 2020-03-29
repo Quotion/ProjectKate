@@ -37,7 +37,7 @@ class Katherine(discord.Client):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
-        self.client.add_cog(Invests(client))
+        # self.client.add_cog(Invests(client))
         self.client.add_cog(RPrequest(client))
 
     def on_ready(self):
@@ -163,25 +163,21 @@ class Katherine(discord.Client):
 
             if info['logging'] != 0:
                 channel = self.client.get_channel(info['logging'])
-                msg_changes = None
                 embed = await functions.embeds.message_edit(msg_before, msg_after)
+                msg_changes, plot = None, None
 
                 try:
                     plot = io.open("changelog.txt", "rb")
                     msg_changes = discord.File(plot, filename="Message_changes.txt")
+                    if msg_changes:
+                        await channel.send(embed=embed, file=msg_changes)
+                    else:
+                        await channel.send(embed=embed)
+                    os.remove("changelog.txt")
+                    msg_changes.close()
+                    plot.close()
                 except Exception as error:
                     logging.error(error)
-                finally:
-                    plot.close()
-
-                if msg_changes:
-                    await channel.send(embed=embed, file=msg_changes)
-                    os.remove("changelog.txt")
-                    msg_changes.close()
-                else:
-                    await channel.send(embed=embed)
-                    os.remove("changelog.txt")
-                    msg_changes.close()
 
             self.pgsql.close_conn(conn, user)
 

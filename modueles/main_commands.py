@@ -36,7 +36,6 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.pgsql.close_conn(conn, user)
             return False
         except IndexError as error:
-            self.logger.error(error)
 
             now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
 
@@ -71,7 +70,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         else:
             for item in data:
 
-                # channel = self.client.get_guild(int(item[0])).system_channel
+                channel = self.client.get_guild(int(item[0])).system_channel
 
                 promo, win, thing = None, None, None
                 comment = random.choice(promo_event)

@@ -28,7 +28,6 @@ class MySQLConnection(object):
                                            password=self.password,
                                            database=self.database)
             if conn.is_connected():
-                self.logger.info("Database, with steam data about users, successfully loaded.")
                 user = conn.cursor(buffered=True)
 
                 user.execute("SET NAMES 'latin1'")
@@ -42,13 +41,11 @@ class MySQLConnection(object):
     def close_conn(self, conn, user):
         try:
             user.close()
-            self.logger.info("Cursor successfully close.")
         except mysql.connector.Error as error:
             self.logger.error(error)
 
         try:
             conn.close()
-            self.logger.info("Connection successfully close.")
         except mysql.connector.Error as error:
             self.logger.error(error)
 
@@ -85,23 +82,20 @@ class PgSQLConnection(object):
                                     user=self.user,
                                     password=self.password,
                                     database=self.database)
-            self.logger.info("Connection PostgreSQL successfully establishment.")
             user = conn.cursor()
 
             return conn, user
 
         except Exception as error:
-            self.logger.error(error)
+            self.logger.exception("Database connect")
 
     def close_conn(self, conn, user):
         try:
             user.close()
-            self.logger.info("Cursor successfully close.")
         except mysql.connector.Error as error:
             self.logger.error(error)
 
         try:
             conn.close()
-            self.logger.info("Connection successfully close.")
         except mysql.connector.Error as error:
             self.logger.error(error)
