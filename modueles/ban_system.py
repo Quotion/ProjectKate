@@ -282,21 +282,20 @@ class Ban(commands.Cog, name="Система банов"):
         self.mysql.close_conn(database, gamer)
 
     @commands.command(name='синхр', help="<префикс>синхр <SteamID>")
-    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.cooldown(1, 10, commands.BucketType.user)
     async def sync(self, ctx):
 
         message = ctx.message.content.split()
 
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
+        data = None
 
         try:
             user.execute("SELECT * FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
             var = user.fetchone()[0]
-        except TypeError:
-            await ctx.send(account_not_exist.format(ctx.author.mention, self.client.command_prefix[0]))
         except IndexError:
-            await ctx.send(account_not_exist.format(ctx.author.mention, self.client.command_prefix[0]))
+            await ctx.send(profile_not_exist.format(ctx.author.mention, self.client.command_prefix[0]))
         except Exception as error:
             await ctx.send(something_went_wrong)
             self.logger.error(error)
@@ -307,6 +306,15 @@ class Ban(commands.Cog, name="Система банов"):
 
         gamer.execute(f"SELECT * FROM users_steam WHERE steamid = '{message[1].upper()}'")
         k = gamer.fetchone()
+
+        try:
+            user.execute("SELECT * FROM users WHERE steamid = '{}'".format(message[1].upper()))
+            var = user.fetchone()[0]
+        except IndexError:
+            pass
+        else:
+            await ctx.send(steamid_already_used.format(ctx.author.mention))
+            return
 
         if not k:
             await ctx.channel.send(steamid_not_in_bd)

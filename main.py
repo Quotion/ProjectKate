@@ -227,30 +227,30 @@ class Katherine(discord.Client):
 
             self.pgsql.close_conn(conn, user)
 
-        @self.client.event
-        async def on_raw_message_edit(payload):
-            channel = self.client.get_channel(int(payload.data['channel_id']))
-            message = await channel.fetch_message(payload.message_id)
-
-            conn, user = self.pgsql.connect()
-            guild_id = message.guild.id
-            user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
-            info = user.fetchone()[0]
-
-            if 'status' in info.keys():
-                if channel.id == info['status']['channel']:
-                    return
-
-            if payload.cached_message:
-                logger.info("Message not exist.")
-                return
-
-            if info['logging']:
-                channel_log = self.client.get_channel(info['logging'])
-                await channel_log.send(embed=await functions.embeds.raw_edit_message(message))
-                logger.info("Message was raw edit.")
-
-            self.pgsql.close_conn(conn, user)
+        # @self.client.event
+        # async def on_raw_message_edit(payload):
+        #     channel = self.client.get_channel(int(payload.data['channel_id']))
+        #     message = await channel.fetch_message(payload.message_id)
+        #
+        #     conn, user = self.pgsql.connect()
+        #     guild_id = message.guild.id
+        #     user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
+        #     info = user.fetchone()[0]
+        #
+        #     if 'status' in info.keys():
+        #         if channel.id == info['status']['channel']:
+        #             return
+        #
+        #     if payload.cached_message:
+        #         logger.info("Message not exist.")
+        #         return
+        #
+        #     if info['logging']:
+        #         channel_log = self.client.get_channel(info['logging'])
+        #         await channel_log.send(embed=await functions.embeds.raw_edit_message(message))
+        #         logger.info("Message was raw edit.")
+        #
+        #     self.pgsql.close_conn(conn, user)
 
         @self.client.event
         async def on_message(message):

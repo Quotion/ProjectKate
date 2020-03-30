@@ -93,6 +93,21 @@ class Sheet(object):
 
         return values
 
+    def get_stations(self):
+        service = Sheet.connect(self)
+
+        if not service:
+            return None
+
+        values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
+                                                     range="'parameters'!E2:E5",
+                                                     majorDimension="COLUMNS"
+                                                     ).execute()
+
+        values = values['values']
+
+        return values
+
     def append_to_sheet(self, values):
         service = Sheet.connect(self)
 
@@ -107,7 +122,7 @@ class Sheet(object):
         service = Sheet.connect(self)
 
         values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
-                                                     range="'text'!B1:B5",
+                                                     range="'text'!B1:B6",
                                                      majorDimension="ROWS"
                                                      ).execute()
 
@@ -140,7 +155,6 @@ class Sheet(object):
 
         return values[0][0], values[1][0]
 
-
     def delete_info(self, id_row):
         service = Sheet.connect(self)
 
@@ -148,7 +162,7 @@ class Sheet(object):
             return None
 
         service.spreadsheets().values().clear(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
-                                              range=f"'requests'!A{id_row}:F{id_row}"
+                                              range=f"'requests'!A{id_row}:G{id_row}"
                                               ).execute()
 
 
@@ -241,23 +255,29 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                     await ctx.send(success_add_dch.format(ctx.author.mention, request[2]))
                     raise Warning("# WARNING: Person successfully added on RP")
 
-            if data[1].lower() == "дсцп":
-                if int(values[3][0]) <= self.sheet.get_data(2).count("дсцп"):
-                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dscp_already_taken))
+            if request[1].lower() == "дсцп":
+                if int(values[3][0]) <= self.sheet.get_data(2).count("дсцп") or self.sheet.get_data(4).count(request[2].lower()) == 1:
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dscp_alert))
                     raise Warning("# WARNING: Role already taken")
+                elif request[2].lower() not in self.sheet.get_stations()[0]:
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, station_not_exist))
+                    raise Warning("# WARNING: Station not found")
                 else:
                     full_info = {"values": [[ctx.author.name, steamid, "дсцп", "-", request[2], "-", comment]]}
                     self.sheet.append_to_sheet(full_info)
                     await ctx.send(success_add_dscp.format(ctx.author.mention, request[2]))
                     raise Warning("# WARNING: Person successfully added on RP")
 
-            if data[1].lower() == "маневровый":
+            if request[1].lower() == "маневровый":
                 if int(values[2][0]) == 0:
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting))
                     raise Warning("# WARNING: Shunting driver not on RP")
                 elif int(values[2][0]) <= self.sheet.get_data(2).count("маневровый"):
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting_already_exist))
                     raise Warning("# WARNING: Role already taken")
+                elif request[2].lower() not in self.sheet.get_stations()[0]:
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, station_not_exist))
+                    raise Warning("# WARNING: Station not found")
                 else:
                     full_info = {"values": [[ctx.author.name, steamid, "маневровый", "-", request[2], "-", comment]]}
                     self.sheet.append_to_sheet(full_info)
@@ -266,14 +286,20 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
 
 
             if request[1].lower() == "машинист":
-                if request[2] not in self.sheet.get_data(3):
+                if request[2] in self.sheet.get_data(3):
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_already_taken))
+                    raise Warning("# WARNING: Number already taken")
+                elif not request[2].isdigit():
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_should_be_number))
+                    raise Warning("# WARNING: Number isn't number")
+                elif int(request[2]) < 0 or int(request[2]) >= 1000:
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_not_number))
+                    raise Warning("# WARNING: Number very unnumber")
+                else:
                     full_info = {"values": [[ctx.author.name, steamid, "машинист", request[2], "-", "-", comment]]}
                     self.sheet.append_to_sheet(full_info)
                     await ctx.send(success_add_driver.format(ctx.author.mention, request[2]))
                     raise Warning("# WARNING: Person successfully added on RP")
-                else:
-                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_already_taken))
-                    raise Warning("# WARNING: Number already taken")
 
         except Warning as warning:
             self.logger.warning(warning)
@@ -310,7 +336,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                 raise Warning
             elif steamid:
                 if steamid in self.sheet.get_data(1):
-                    self.sheet.delete_info(self.sheet.get_data(1).index(steamid) + 2)
+                    self.sheet.delete_info(self.sheet.get_data(1).index(steamid) + 1)
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_delete))
                     raise Warning("# WARNING: Successfully delete request.")
                 else:
@@ -322,6 +348,15 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
         except Exception as error:
             self.logger.exception("Something called exception.")
         finally:
+            all_data = self.sheet.get_all_data()
+            id_channel, id_message = self.sheet.get_message()
+            embed=await functions.embeds.all_members(ctx, all_data)
+
+            channel = self.client.get_channel(int(id_channel))
+            message = await channel.fetch_message(int(id_message))
+
+            await message.edit(embed=embed)
+
             self.pgsql.close_conn(conn, user)
 
     @commands.command(name="объявление", help="<префикс>объявление")
@@ -339,7 +374,8 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, text_not_found))
                 return
 
-            message = await ctx.send(text_for_adverting.format(text[0][0], text[1][0], info[1][0], info[3][0], info[2][0], info[0][0], text[2][0], text[3][0], text[4][0]), embed=embed)
+            message = await ctx.send(text_for_adverting.format(text[0][0], text[1][0], text[2][0], info[1][0], info[3][0], info[2][0], info[0][0], text[3][0],
+                                                               text[4][0], text[5][0]), embed=embed)
 
             self.sheet.save_message(str(ctx.channel.id), str(message.id))
 
@@ -361,7 +397,8 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
 
             embed = await functions.embeds.all_members(ctx, all_data)
 
-            message = await message.edit(content=text_for_adverting.format(text[0][0], text[1][0], info[1][0], info[3][0], info[2][0], info[0][0], text[2][0], text[3][0], text[4][0]), embed=embed)
+            message = await message.edit(content=text_for_adverting.format(text[0][0], text[1][0], text[2][0], info[1][0], info[3][0], info[2][0], info[0][0], text[3][0],
+                                                                           text[4][0], text[5][0]), embed=embed)
 
         except Exception as error:
             self.logger.exception("Something called exception.")
