@@ -33,12 +33,12 @@ class Katherine(discord.Client):
         self.on_ready()
         self.events()
 
-        self.client.add_cog(AddChannels(client))
+        # self.client.add_cog(AddChannels(client))
         self.client.add_cog(MainCommands(client))
-        self.client.add_cog(Status(client))
-        self.client.add_cog(Ban(client))
-        # self.client.add_cog(Invests(client))
-        self.client.add_cog(RPrequest(client))
+        # self.client.add_cog(Status(client))
+        # self.client.add_cog(Ban(client))
+        # # self.client.add_cog(Invests(client))
+        # self.client.add_cog(RPrequest(client))
 
     def on_ready(self):
 
@@ -56,17 +56,12 @@ class Katherine(discord.Client):
         async def on_guild_join(guild):
             conn, user = self.pgsql.connect()
             user.execute("SELECT info FROM info WHERE guild_id = %s", [guild.id])
-            info = user.fetchone()[0]
+            info = user.fetchone()
             if not info or info == "null":
                 information = {'main': 0, 'news': 0, 'logging': 0}
-                user.execute("INSERT INTO info (info) VALUES (%s, %s)", (guild.id, json.dumps(information),))
-                conn.commit()
-
-            user.execute("SELECT bank_info FROM info WHERE guild_id = %s", [guild.id])
-            bank_info = user.fetchone()[0]
-            if not bank_info or bank_info == "null":
-                information = {'name': f"\"{guild.name}\" банк", 'char_of_currency': 'ВС'}
-                user.execute("INSERT INTO info (bank_info) VALUES (%s, %s)", (guild.id, json.dumps(information),))
+                bank = {'name': f'"{guild.name}" банк', 'char_of_currency': 'ВС'}
+                user.execute("INSERT INTO info (bank_info, guild_id, info, promocode) VALUES (%s, %s, %s, %s)",
+                            (json.dumps(bank), guild.id, json.dumps(information), json.dumps({"amount":0, "code":0})))
                 conn.commit()
 
             logger.info('Someone added {} to guild "{}"'.format(self.client.user.name, guild.name))
@@ -120,12 +115,13 @@ class Katherine(discord.Client):
 
             conn, user = self.pgsql.connect()
 
+            roles = None
+
             guild_id = member.guild.id
 
-            user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
-            roles = user.fetchone()[0]
-
             try:
+                user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
+                roles = user.fetchone()[0]
                 roles[str(member.guild.id)]
             except TypeError:
                 if not roles:
@@ -191,10 +187,9 @@ class Katherine(discord.Client):
             info = user.fetchone()[0]
 
             if info['logging'] != 0:
-                channel = self.client.get_channel(info['logging'])
-
-                await channel.send(embed=await functions.embeds.delete_message(message))
-                logger.info("Message was delete.")
+                if message.content:
+                    channel = self.client.get_channel(info['logging'])
+                    await channel.send(embed=await functions.embeds.delete_message(message))
 
             self.pgsql.close_conn(conn, user)
 
@@ -272,8 +267,10 @@ class Katherine(discord.Client):
 
             if message.author.id == self.client.user.id:
                 return
-            elif "коллекция" in message.content:
+            elif ("коллекция" in message.content or "коллекцию" in message.content) and message.guild.id == 580768441279971338:
                 await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1735486737")
+            elif ("коллекция" in message.content or "коллекцию" in message.content) and message.guild.id == 683031919822110778:
+                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1726227848")
             else:
                 await self.client.process_commands(message)
 

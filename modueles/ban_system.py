@@ -312,6 +312,10 @@ class Ban(commands.Cog, name="Система банов"):
             var = user.fetchone()[0]
         except IndexError:
             pass
+        except TypeError:
+            pass
+        except Exception as error:
+            self.logger.exception("Synch SteamID failed")
         else:
             await ctx.send(steamid_already_used.format(ctx.author.mention))
             return
@@ -429,14 +433,14 @@ class Ban(commands.Cog, name="Система банов"):
             user.execute("SELECT goldmoney, steamid FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
             data = user.fetchall()[0]
             money, steamid = data[0], data[1]
-            if money >= 500000 and rank == "vip":
+            if money >= 500000 and rank.lower() == "vip":
                 user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
                              format(500000, ctx.author.id))
                 conn.commit()
                 gamer.execute(f"UPDATE users_steam SET rank = 'vip' WHERE steamid = '{steamid}'")
                 database.commit()
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, buying_vip))
-            elif money >= 1000000 and rank == "premium":
+            elif money >= 1000000 and rank.lower() == "premium":
                 user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
                              format(1000000, ctx.author.id))
                 conn.commit()

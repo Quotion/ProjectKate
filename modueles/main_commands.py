@@ -70,7 +70,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         else:
             for item in data:
 
-                channel = self.client.get_guild(int(item[0])).system_channel
+                # channel = self.client.get_guild(int(item[0])).system_channel
 
                 promo, win, thing = None, None, None
                 comment = random.choice(promo_event)
@@ -112,13 +112,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
             conn, user = self.pgsql.connect()
             user.execute("SELECT promocode FROM info WHERE guild_id = {}".format(ctx.guild.id))
             promo = user.fetchone()[0]
-            if not promo['code'] == 0:
-                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, promo_already_on))
-                return
-            else:
+            if not promo or promo == "null":
                 user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 1}), ctx.guild.id))
                 conn.commit()
                 await ctx.send(promo_on.format(ctx.author.mention, self.client.command_prefix[0]))
+            elif not promo['code'] == 0:
+                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, promo_already_on))
+                return
         except IndexError as error:
             self.logger.error(error)
         except Exception as error:
@@ -496,9 +496,16 @@ class MainCommands(commands.Cog, name="Основные команды"):
         for i in range(1, len(answers) + 1):
             await msg.add_reaction(f"{i}\N{combining enclosing keycap}")
 
-    @commands.command(name="ботбан", help="<префикс>ботбан <discord>")
-    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.command(name="ботбан", help="<префикс>ботбан <хайлайт роли>")
+    @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 30, commands.BucketType.user)
     async def botban(self, ctx):
+        msg = ctx.message.content.split()
+
+        if len(msg) > 2:
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
+            return
+
         try:
             conn, user = self.pgsql.connect()
             id = ctx.message.role_mentions[0].id
@@ -507,6 +514,58 @@ class MainCommands(commands.Cog, name="Основные команды"):
             conn.commit()
 
             await ctx.send(successfully_added_to_botban.format(ctx.author.mention))
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @commands.command(name="ботразбан", help="<префикс>ботбан <хайлайт роли>")
+    @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 30, commands.BucketType.user)
+    async def botunban(self, ctx):
+        msg = ctx.message.content.split()
+
+        if len(msg) > 2:
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
+            return
+
+        try:
+            conn, user = self.pgsql.connect()
+            id = ctx.message.role_mentions[0].id
+
+            user.execute("DELETE * FROM botban WHERE id = {}".format(id))
+            conn.commit()
+
+            await ctx.send(successfully_remove_to_botban.format(ctx.author.mention))
+        except Exception as error:
+            self.logger.error(error)
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+    @commands.command(name="роль_входа", help="<префикс>роль_входа <хайлайт 1 роли>")
+    @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 30, commands.BucketType.user)
+    async def enter_role(self, ctx):
+        msg = ctx.message.content.split()
+
+        if len(msg) > 2:
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
+            return
+
+        conn, user = self.pgsql.connect()
+
+        try:
+            id = ctx.message.role_mentions[0].id
+
+            user.execute("SELECT info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            info = user.fetchone()[0]
+
+            info['enter_role'] = id
+
+            user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), ctx.guild.id))
+            conn.commit()
+
+            await ctx.send(role_added_to_enter.format(ctx.author.mention, ctx.guild.get_role(id).mention))
         except Exception as error:
             self.logger.error(error)
         finally:
@@ -524,7 +583,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(not_enough_words.format(ctx.author.mention, ctx.message.content))
         elif isinstance(error, commands.CommandNotFound):
-            await ctx.send(command_not_found.format(ctx.author.mention, ctx.message.content))
+            msg = ctx.message.content.split()
+            await ctx.send(command_not_found.format(ctx.author.mention, msg[0]))
         elif isinstance(error, commands.CommandOnCooldown):
             await ctx.send(cooldown.format(ctx.author.mention, int(error.retry_after)))
         else:
