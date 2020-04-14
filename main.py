@@ -9,6 +9,7 @@ from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
 from modueles.invests import Invests
 from modueles.rprequest import RPrequest
+from modueles.fun_gif import Fun_Gif
 import discord
 import logging
 import json
@@ -33,12 +34,13 @@ class Katherine(discord.Client):
         self.on_ready()
         self.events()
 
-        # self.client.add_cog(AddChannels(client))
+        self.client.add_cog(AddChannels(client))
         self.client.add_cog(MainCommands(client))
-        # self.client.add_cog(Status(client))
-        # self.client.add_cog(Ban(client))
-        # # self.client.add_cog(Invests(client))
-        # self.client.add_cog(RPrequest(client))
+        self.client.add_cog(Status(client))
+        self.client.add_cog(Ban(client))
+        # self.client.add_cog(Invests(client))
+        self.client.add_cog(RPrequest(client))
+        self.client.add_cog(Fun_Gif(client))
 
     def on_ready(self):
 
@@ -95,7 +97,7 @@ class Katherine(discord.Client):
 
             try:
                 roles[str(member.guild.id)]
-            except TypeError:
+            except KeyError:
                 if not roles:
                     roles = {}
                 roles[str(member.guild.id)] = {}
@@ -123,7 +125,7 @@ class Katherine(discord.Client):
                 user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
                 roles = user.fetchone()[0]
                 roles[str(member.guild.id)]
-            except TypeError:
+            except KeyError:
                 if not roles:
                     roles = {}
                 roles[str(member.guild.id)] = {}

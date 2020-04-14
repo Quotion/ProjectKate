@@ -49,13 +49,13 @@ class Sheet(object):
 
         return values['values']
 
-    def get_data(self, id_cloumn):
+    def get_data_column(self, id_cloumn):
         service = Sheet.connect(self)
 
         if not service:
             return None
 
-        roles = list()
+        data = list()
 
         values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
                                                      range=f"'requests'!{chr(65 + id_cloumn)}1:{chr(65 + id_cloumn)}30",
@@ -69,9 +69,27 @@ class Sheet(object):
             if value == "" or not value:
                 break
             else:
-                roles.append(value)
+                data.append(value)
 
-        return roles
+        return data
+
+    def get_data_row(self, id_row):
+        service = Sheet.connect(self)
+
+        if not service:
+            return None
+
+        roles = list()
+
+        values = service.spreadsheets().values().get(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
+                                                     range=f"'requests'!A{int(id_row + 1)}:G{int(id_row + 1)}",
+                                                     majorDimension="ROWS"
+                                                     ).execute()
+
+        if "values" not in values.keys():
+            return []
+
+        return values["values"][0]
 
     def get_all_data(self):
         service = Sheet.connect(self)
@@ -162,7 +180,7 @@ class Sheet(object):
             return None
 
         service.spreadsheets().values().clear(spreadsheetId=self.SAMPLE_SPREADSHEET_ID,
-                                              range=f"'requests'!A{id_row}:G{id_row}"
+                                              range=f"'requests'!A{id_row + 1}:G{id_row + 1}"
                                               ).execute()
 
 
@@ -234,7 +252,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
                 raise Warning("# WARNING: Person not synchronized")
 
-            if steamid in self.sheet.get_data(1):
+            if steamid in self.sheet.get_data_column(1):
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, already_in_rp))
                 raise Warning("# WARNING: Person already on RP")
 
@@ -246,7 +264,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                 if (int(request[2]) > int(values[1][0])) or (int(request[2]) <= 0):
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, line_not_exist))
                     raise Warning("# WARNING: Too many lines")
-                elif int(values[1][0]) <= self.sheet.get_data(2).count("дцх"):
+                elif int(values[1][0]) <= self.sheet.get_data_column(2).count("дцх"):
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dch_already_taken))
                     raise Warning("# WARNING: Line already taken")
                 else:
@@ -256,7 +274,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                     raise Warning("# WARNING: Person successfully added on RP")
 
             if request[1].lower() == "дсцп":
-                if int(values[3][0]) <= self.sheet.get_data(2).count("дсцп") or self.sheet.get_data(4).count(request[2].lower()) == 1:
+                if int(values[3][0]) <= self.sheet.get_data_column(2).count("дсцп") or self.sheet.get_data_column(4).count(request[2].lower()) == 1:
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dscp_alert))
                     raise Warning("# WARNING: Role already taken")
                 elif request[2].lower() not in self.sheet.get_stations()[0]:
@@ -272,7 +290,7 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                 if int(values[2][0]) == 0:
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting))
                     raise Warning("# WARNING: Shunting driver not on RP")
-                elif int(values[2][0]) <= self.sheet.get_data(2).count("маневровый"):
+                elif int(values[2][0]) <= self.sheet.get_data_column(2).count("маневровый"):
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, driver_shunting_already_exist))
                     raise Warning("# WARNING: Role already taken")
                 elif request[2].lower() not in self.sheet.get_stations()[0]:
@@ -284,22 +302,27 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                     await ctx.send(success_add_shunting_driver.format(ctx.author.mention, request[2], "-"))
                     raise Warning("# WARNING: Person successfully added on RP")
 
-
             if request[1].lower() == "машинист":
-                if request[2] in self.sheet.get_data(3):
+                if request[2] in self.sheet.get_data_column(3):
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_already_taken))
                     raise Warning("# WARNING: Number already taken")
                 elif not request[2].isdigit():
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_should_be_number))
                     raise Warning("# WARNING: Number isn't number")
-                elif int(request[2]) < 0 or int(request[2]) >= 1000:
+                elif int(request[2]) <= 0 or int(request[2]) >= 1000:
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, number_not_number))
-                    raise Warning("# WARNING: Number very unnumber")
+                    raise Warning("# WARNING: Number or more then 1000, or less then 0")
+                elif int(values[0][0]) <= self.sheet.get_data_column(2).count("машинист"):
+                    full_info = {"values": [[ctx.author.name, steamid, "резервный", request[2], "-", "-", comment]]}
+                    self.sheet.append_to_sheet(full_info)
+                    await ctx.send(success_add_reserve_train.format(ctx.author.mention, "Резервный машинст", request[2]))
+                    raise Warning("# WARNING: Person successfully added on RP")
                 else:
                     full_info = {"values": [[ctx.author.name, steamid, "машинист", request[2], "-", "-", comment]]}
                     self.sheet.append_to_sheet(full_info)
                     await ctx.send(success_add_driver.format(ctx.author.mention, request[2]))
                     raise Warning("# WARNING: Person successfully added on RP")
+
 
         except Warning as warning:
             self.logger.warning(warning)
@@ -334,17 +357,42 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
             if steamid == "None" or not steamid:
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, dont_write))
                 raise Warning
-            elif steamid:
-                if steamid in self.sheet.get_data(1):
-                    self.sheet.delete_info(self.sheet.get_data(1).index(steamid) + 1)
+            elif steamid in self.sheet.get_data_column(1):
+                role = self.sheet.get_data_row(self.sheet.get_data_column(1).index(steamid))[2]
+                reserve = self.sheet.get_data_row(self.sheet.get_data_column(2).index("резервный"))
+                if role == "машинист" and reserve:
+                    print(reserve)
+                    self.sheet.delete_info(self.sheet.get_data_column(1).index(reserve[1]))
+                    self.sheet.delete_info(self.sheet.get_data_column(1).index(steamid))
+                    full_info = {"values": [[reserve[0], reserve[1], "машинист", reserve[3], "-", "-", reserve[6]]]}
+                    self.sheet.append_to_sheet(full_info)
+                    await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_delete))
+                    try:
+                        user.execute('SELECT "discordID" FROM users WHERE steamid = \'' + reserve[1] + '\'')
+                        checked_ply = user.fetchone()[0]
+                        member = await ctx.guild.fetch_member(int(checked_ply))
+                    except TypeError:
+                        pass
+                    except IndexError:
+                        pass
+                    except discord.errors.NotFound:
+                        await ctx.send(success_add_driver.format(reserve[0], "машинист", reserve[3]))
+                        checked_ply = None
+                    except Exception as error:
+                        self.logger.error(error)
+                    else:
+                        await ctx.send(success_add_driver.format(member.mention, "машинист", reserve[2]))
+                    raise Warning("# WARNING: Person successfully added on RP")
+                else:
+                    self.sheet.delete_info(self.sheet.get_data_column(1).index(steamid))
                     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, success_delete))
                     raise Warning("# WARNING: Successfully delete request.")
-                else:
-                    await ctx.send(dont_write.format(ctx.author.mention, self.client.command_prefix[0]))
-                    raise Warning("# WARNING: Person dont write request.")
+            else:
+                await ctx.send(dont_write.format(ctx.author.mention, self.client.command_prefix[0]))
+                raise Warning("# WARNING: Person dont write request.")
 
-        except Warning:
-            pass
+        except Warning as warning:
+            self.logger.warning(warning)
         except Exception as error:
             self.logger.exception("Something called exception.")
         finally:
