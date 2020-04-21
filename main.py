@@ -183,7 +183,7 @@ class Katherine(discord.Client):
         async def on_message_delete(message):
             conn, user = self.pgsql.connect()
 
-            guild_id = message.guild.id
+            guild_id, check, msg_delete = message.guild.id, None, None
 
             user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
             info = user.fetchone()[0]
@@ -191,7 +191,29 @@ class Katherine(discord.Client):
             if info['logging'] != 0:
                 if message.content:
                     channel = self.client.get_channel(info['logging'])
-                    await channel.send(embed=await functions.embeds.delete_message(message))
+
+                    if len(message.content) > 50:
+                        content = message.content[0:40] + "..."
+                        check = True
+
+                    if check:
+                        try:
+                            with io.open("changelogdeleted.txt", "w", encoding='utf8') as file:
+                                file.write("Удаленное сообщение:\n" + message.content)
+
+                            file = io.open("changelogdeleted.txt", "rb")
+                            msg_delete = discord.File(file, filename="Message_deleted.txt")
+
+                            await channel.send(embed=await functions.embeds.delete_message(message, content), file=msg_delete)
+
+                            file.close()
+                            msg_delete.close()
+                            os.remove("changelogdeleted.txt")
+                        except Exception as error:
+                            logging.error(error)
+                    else:
+                        await channel.send(embed=await functions.embeds.delete_message(message, message.content))
+
 
             self.pgsql.close_conn(conn, user)
 

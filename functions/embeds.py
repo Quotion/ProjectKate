@@ -67,6 +67,19 @@ async def message_edit(before, after):
 
 async def profile(all_data, **kwargs):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+
+    all_time = str(datetime.timedelta(seconds=all_data['time']))
+
+    if all_time.find("days") != -1:
+        all_time = all_time.replace("days", "дн")
+    else:
+        all_time = all_time.replace("day", "дн")
+
+    if all_time.find("weeks") != -1:
+        all_time = all_time.replace("weeks", "нед")
+    else:
+        all_time = all_time.replace("week", "нед")
+
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"Профиль игрока {kwargs['name']}", icon_url=kwargs["icon_url"])
     embed.set_thumbnail(url=kwargs["avatar_url"])
@@ -75,20 +88,21 @@ async def profile(all_data, **kwargs):
     embed.add_field(name=f"Зол. {all_data['name_of_currency'].title()}:", value=str(all_data['gold_money']))
     embed.add_field(name='Рейтинг:', value=str(all_data['rating']))
     embed.add_field(name='Ваш SteamID:', value=str(all_data['steamid']), inline=False)
+    embed.add_field(name='Всё время игры:', value=str(all_time))
     embed.add_field(name='Ник:', value=str(all_data['nick']))
     embed.add_field(name='Ранг:', value=str(all_data['rank']))
     embed.set_footer(text="{} | {} | {}".format(kwargs['name'], kwargs['guild_name'], now.strftime('%d.%m.%Y')))
     return embed
 
 
-async def delete_message(message):
+async def delete_message(message, content):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {message.guild.name} было удаленно сообщение, "
                           f"отправленное {message.author.name}.",
                      icon_url=message.guild.icon_url)
     embed.add_field(name='Текст сообщения:',
-                    value=message.content,
+                    value=content,
                     inline=False)
     embed.set_thumbnail(url=message.author.avatar_url)
     embed.set_footer(text=f"{message.author.name} | {message.channel.name} | {now.strftime('%d.%m.%Y')}")

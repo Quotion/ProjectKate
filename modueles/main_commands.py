@@ -185,13 +185,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[7]))
                 steam = user_mysql.fetchall()[0]
 
-                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1],
+                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1], time=steam[8],
                                 rank=steam[2], name_of_currency=name_of_currency)
 
                 self.mysql.close_conn(conn_mysql, user_mysql)
             else:
                 all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid='Не синхронизирован',
-                                nick='Не синхронизирован', rank='Не синхронизирован',
+                                nick='Не синхронизирован', time='Не синхронизирован', rank='Не синхронизирован',
                                 name_of_currency=name_of_currency)
 
             await ctx.send(embed=await functions.embeds.profile(all_data,
@@ -448,7 +448,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
 
         if steamid != "None" and steamid:
-            gamer.execute("SELECT * FROM users_steam WHERE steamid = %s", [steamid])
+            gamer.execute("SELECT * FROM statistics WHERE steamid = %s", [steamid])
             data = gamer.fetchall()[0]
 
             labels, all_time = await create_figure(data)
@@ -474,6 +474,31 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name="выбор", help="<префикс>выбор <вопрос> <+1> <+2>...<+9>.")
     @commands.cooldown(1, 60, commands.BucketType.user)
     async def polls(self, ctx):
+        message = ctx.message.content.split()
+        answers = ctx.message.content.split("+")
+        quest, time = "", 0
+        for i in range(1, len(message)):
+            if message[i].find("+") == -1:
+                quest += message[i] + " "
+            else:
+                break
+
+        if quest == "":
+            await ctx.send(question_not_post.format(ctx.author.mention, self.client.command_prefix[0]))
+            return
+
+        answers = answers[1:len(answers)]
+        if len(answers) > 9:
+            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, answers_out_of_range))
+            return
+        msg = await ctx.send(embed=await functions.embeds.poll(ctx, quest, time, answers))
+
+        for i in range(1, len(answers) + 1):
+            await msg.add_reaction(f"{i}\N{combining enclosing keycap}")
+
+    @commands.command(name="выбор_на_время", help="<префикс>выбор_на_время <вопрос> <время (часы)> <+1> <+2>...<+9>")
+    @commands.cooldown(1, 60, commands.BucketType.user)
+    async def polls_time(self, ctx):
         message = ctx.message.content.split()
         answers = ctx.message.content.split("+")
         quest, time = "", 0
@@ -542,34 +567,51 @@ class MainCommands(commands.Cog, name="Основные команды"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name="роль_входа", help="<префикс>роль_входа <хайлайт 1 роли>")
-    @commands.has_permissions(administrator=True)
-    @commands.cooldown(1, 30, commands.BucketType.user)
-    async def enter_role(self, ctx):
-        msg = ctx.message.content.split()
-
-        if len(msg) > 2:
-            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
-            return
-
-        conn, user = self.pgsql.connect()
-
-        try:
-            id = ctx.message.role_mentions[0].id
-
-            user.execute("SELECT info FROM info WHERE guild_id = {}".format(ctx.guild.id))
-            info = user.fetchone()[0]
-
-            info['enter_role'] = id
-
-            user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), ctx.guild.id))
-            conn.commit()
-
-            await ctx.send(role_added_to_enter.format(ctx.author.mention, ctx.guild.get_role(id).mention))
-        except Exception as error:
-            self.logger.error(error)
-        finally:
-            self.pgsql.close_conn(conn, user)
+    # @commands.command(name="запрет_заявки", help="<префикс>запрет_заявки <хайлайт роли>")
+    # @commands.has_permissions(administrator=True)
+    # @commands.cooldown(1, 30, commands.BucketType.user)
+    # async def ban_request(self, ctx):
+    #     msg = ctx.message.content.split()
+    #
+    #     if len(msg) > 2:
+    #         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
+    #         return
+    #
+    #     try:
+    #         conn, user = self.pgsql.connect()
+    #         id = ctx.message.role_mentions[0].id
+    #
+    #         user.execute("INSERT INTO botban (id) VALUES({})".format(id))
+    #         conn.commit()
+    #
+    #         await ctx.send(successfully_added_to_botban.format(ctx.author.mention))
+    #     except Exception as error:
+    #         self.logger.error(error)
+    #     finally:
+    #         self.pgsql.close_conn(conn, user)
+    #
+    # @commands.command(name="отмена_запрета", help="<префикс>отмена_запрета <хайлайт роли>")
+    # @commands.has_permissions(administrator=True)
+    # @commands.cooldown(1, 30, commands.BucketType.user)
+    # async def unban_request(self, ctx):
+    #     msg = ctx.message.content.split()
+    #
+    #     if len(msg) > 2:
+    #         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
+    #         return
+    #
+    #     try:
+    #         conn, user = self.pgsql.connect()
+    #         id = ctx.message.role_mentions[0].id
+    #
+    #         user.execute("DELETE * FROM botban WHERE id = {}".format(id))
+    #         conn.commit()
+    #
+    #         await ctx.send(successfully_remove_to_botban.format(ctx.author.mention))
+    #     except Exception as error:
+    #         self.logger.error(error)
+    #     finally:
+    #         self.pgsql.close_conn(conn, user)
 
     @commands.command(name="сервер", help="<префикс>сервер")
     async def server_info(self, ctx):

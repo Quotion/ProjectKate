@@ -23,45 +23,45 @@ async def create_figure(data):
     labels = []
     all_time = 0
 
-    for i in range(8, 21):
+    for i in range(1, 14):
         if data[i] != 0:
-            if i == 8:
+            if i == 1:
                 time.append(data[i])
                 labels.append("Ема-502")
-            elif i == 9:
+            elif i == 2:
                 time.append(data[i])
                 labels.append("81-702")
-            elif i == 10:
+            elif i == 3:
                 time.append(data[i])
                 labels.append("81-703")
-            elif i == 11:
+            elif i == 4:
                 time.append(data[i])
                 labels.append("81-707")
-            elif i == 12:
+            elif i == 5:
                 time.append(data[i])
                 labels.append("81-710")
-            elif i == 13:
+            elif i == 6:
                 time.append(data[i])
                 labels.append("МВМ")
-            elif i == 14:
+            elif i == 7:
                 time.append(data[i])
                 labels.append("СПБ")
-            elif i == 15:
+            elif i == 8:
                 time.append(data[i])
                 labels.append("81-718")
-            elif i == 16:
+            elif i == 9:
                 time.append(data[i])
                 labels.append("81-720")
-            elif i == 17:
+            elif i == 10:
                 time.append(data[i])
                 labels.append("81-722")
-            elif i == 18:
+            elif i == 11:
                 time.append(data[i])
                 labels.append("81-540.2")
-            elif i == 19:
+            elif i == 12:
                 time.append(data[i])
                 labels.append("81-760")
-            elif i == 20:
+            elif i == 13:
                 time.append(data[i])
                 labels.append("81-760А")
 

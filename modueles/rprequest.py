@@ -352,6 +352,8 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
         try:
             conn, user = self.pgsql.connect()
 
+            reserve = None
+
             user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {ctx.author.id}")
             steamid = user.fetchone()[0]
             if steamid == "None" or not steamid:
@@ -359,7 +361,10 @@ class RPrequest(commands.Cog, name="Заявки на РП-сессию"):
                 raise Warning
             elif steamid in self.sheet.get_data_column(1):
                 role = self.sheet.get_data_row(self.sheet.get_data_column(1).index(steamid))[2]
-                reserve = self.sheet.get_data_row(self.sheet.get_data_column(2).index("резервный"))
+                try:
+                    reserve = self.sheet.get_data_row(self.sheet.get_data_column(2).index("резервный"))
+                except ValueError:
+                    reserve = None
                 if role == "машинист" and reserve:
                     print(reserve)
                     self.sheet.delete_info(self.sheet.get_data_column(1).index(reserve[1]))
