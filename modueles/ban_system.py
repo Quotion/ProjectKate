@@ -331,7 +331,7 @@ class Ban(commands.Cog, name="Система банов"):
         self.pgsql.close_conn(conn, user)
         self.mysql.close_conn(database, gamer)
 
-    @commands.command(name="ранг", help="<префикс>ранг <SteamID или Discord> <ранг>")
+    @commands.command(name="ранг", help="<префикс>ранг <SteamID или Discord (можно несколько)> <ранг>")
     @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
     async def set_rank(self, ctx):
@@ -356,12 +356,12 @@ class Ban(commands.Cog, name="Система банов"):
                 for mention in ctx.message.mentions:
                     if mention.id in discordids:
                         discordid = mention.id
-                        user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {discordid}")
+                        user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {int(discordid)}")
                         steamid = user.fetchone()[0]
                         if steamid == "None" or not steamid:
                             await ctx.channel.send(not_synchronized.format(ctx.author.mention, self.client.get_user(int(discordid)).mention))
                             return
-                        gamer.execute(f"UPDATE users_steam SET rank = '{message[len(message)]}' WHERE steamid = '{steamid}'")
+                        gamer.execute(f"UPDATE users_steam SET rank = '{message[len(message) - 1]}' WHERE steamid = '{steamid}'")
                         database.commit()
                         self.logger.info("User with SteamID {} successfully changed rank.".format(steamid))
                         await ctx.channel.send(rank_changed.format(ctx.author.mention, message[len(message) - 1], self.client.get_user(int(discordid)).mention))

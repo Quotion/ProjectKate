@@ -68,17 +68,21 @@ async def message_edit(before, after):
 async def profile(all_data, **kwargs):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
 
-    all_time = str(datetime.timedelta(seconds=all_data['time']))
+    all_time = all_data['time']
 
-    if all_time.find("days") != -1:
-        all_time = all_time.replace("days", "дн")
-    else:
-        all_time = all_time.replace("day", "дн")
+    if all_data['time'] != "Не синхронизирован":
 
-    if all_time.find("weeks") != -1:
-        all_time = all_time.replace("weeks", "нед")
-    else:
-        all_time = all_time.replace("week", "нед")
+        all_time = str(datetime.timedelta(seconds=all_data['time']))
+
+        if all_time.find("days") != -1:
+            all_time = all_time.replace("days", "дн")
+        else:
+            all_time = all_time.replace("day", "дн")
+
+        if all_time.find("weeks") != -1:
+            all_time = all_time.replace("weeks", "нед")
+        else:
+            all_time = all_time.replace("week", "нед")
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"Профиль игрока {kwargs['name']}", icon_url=kwargs["icon_url"])
@@ -410,9 +414,18 @@ async def all_members(ctx, all_data):
     for data in all_data:
         if "маневровый" in data:
             things.append(f"`Маневровый машинист` {data[0]} по станции `{data[4]}`")
+
+    drivers = list(list())
     for data in all_data:
         if "машинист" in data:
-            things.append(f"`Машинист` {data[0]}. Номер состава: `{data[3]}`")
+            drivers.append([int(data[3]), data[0]])
+
+    drivers = sorted(drivers, key=lambda driver: driver[0])
+    print(drivers)
+
+    for i in range(0, len(drivers)):
+        things.append(f"`Машинист` {drivers[i][1]}. Номер маршрута `{drivers[i][0]}`")
+
     embed.description = '\n'.join([thing for thing in things])
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed

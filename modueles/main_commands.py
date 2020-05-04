@@ -206,7 +206,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         finally:
             self.pgsql.close_conn(conn, user)
 
-    @commands.command(name='удали', help="<префикс>удали <количество сообщений>")
+    @commands.command(name='удалить', help="<префикс>удалить <количество сообщений (меньше 100)>")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
@@ -222,10 +222,30 @@ class MainCommands(commands.Cog, name="Основные команды"):
             self.logger.info("{} entered not a number.".format(ctx.author.name))
             return
 
-        await ctx.channel.purge(limit=int(msg[1]) + 1)
+        if int(msg[1]) > 100:
+            await ctx.send(number_of_delete_messages_hude.format(ctx.author.mention))
+            return
+
         if info['logging']:
+
+            messages = await ctx.channel.history(limit=int(msg[1]) + 1).flatten()
+
+            with open("purgedeleted.txt", "w", encoding='utf8') as file:
+                file.write("Удаленные сообщения:\n\n\n")
+                for message in messages:
+                    file.write("\n" + str(message.created_at) + ": " + message.content)
+
+            file = open("purgedeleted.txt", "rb")
+            msgs_deleted = discord.File(file, filename="All_deleted_message.txt")
+
+            await ctx.channel.purge(limit=int(msg[1]) + 1)
+
             channel = self.client.get_channel(info['logging'])
-            await channel.send(embed=await functions.embeds.purge(ctx, int(msg[1])))
+            await channel.send(embed=await functions.embeds.purge(ctx, int(msg[1])), file=msgs_deleted)
+
+            file.close()
+            msgs_deleted.close()
+            os.remove("purgedeleted.txt")
 
     @commands.command(name="промокод", help="<префикс>промокод <6 цифр>")
     @commands.cooldown(1, 5, commands.BucketType.user)
@@ -439,21 +459,29 @@ class MainCommands(commands.Cog, name="Основные команды"):
         database, gamer = self.mysql.connect()
         user.execute("SELECT steamid FROM users WHERE \"discordID\" = %s", [ctx.author.id])
 
-        steamid = None
+        steamid, data = None, None
 
         try:
             steamid = user.fetchone()[0]
         except IndexError as error:
             self.logger.error(error)
             await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+            return
 
         if steamid != "None" and steamid:
-            gamer.execute("SELECT * FROM statistics WHERE steamid = %s", [steamid])
-            data = gamer.fetchall()[0]
+            try:
+                gamer.execute("SELECT * FROM statistics WHERE steamid = %s", [steamid])
+                data = gamer.fetchall()[0]
+            except IndexError:
+                await ctx.send(statistic_went_wrong.format(ctx.author.mention))
+            except Exception as error:
+                self.logger.error(error)
+                await ctx.send(something_went_wrong)
+                return
 
             labels, all_time = await create_figure(data)
 
-            if not labels:
+            if all_time == 0 and not labels:
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, for_statistics))
                 return
 

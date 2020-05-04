@@ -9,7 +9,6 @@ class MySQLConnection(object):
     def __init__(self):
 
         logger = logging.getLogger("mysql_database")
-        logger.setLevel(logging.INFO)
 
         self.logger = logger
 
@@ -29,25 +28,38 @@ class MySQLConnection(object):
                                            database=self.database)
             if conn.is_connected():
                 user = conn.cursor(buffered=True)
+                logging.debug("#Garr's mod: Cursor of database has loaded.")
 
                 user.execute("SET NAMES 'latin1'")
+                logging.debug("#Garr's mod: Encoding of database has changed to \"latin1\".")
+
                 conn.commit()
+                logging.debug("#Garr's mod: Database with Garry's mod information has successfully connected.")
 
                 return conn, user
 
         except mysql.connector.Error as error:
             self.logger.error(error)
 
+        except Exception as error:
+            self.logger.debug(error)
+
     def close_conn(self, conn, user):
         try:
             user.close()
+            logging.debug("#Garr's mod: Cursor has unloaded.")
         except mysql.connector.Error as error:
             self.logger.error(error)
+        except Exception as error:
+            self.logger.debug(error)
 
         try:
             conn.close()
+            logging.debug("#Garr's mod: Connection has unloaded.")
         except mysql.connector.Error as error:
             self.logger.error(error)
+        except Exception as error:
+            self.logger.debug(error)
 
 
 class PgSQLConnection(object):
@@ -55,7 +67,6 @@ class PgSQLConnection(object):
     def __init__(self):
 
         logger = logging.getLogger("pgsql_database")
-        logger.setLevel(logging.INFO)
 
         self.logger = logger
 

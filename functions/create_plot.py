@@ -24,6 +24,12 @@ async def create_figure(data):
     all_time = 0
 
     for i in range(1, 14):
+        all_time += int(data[i])
+
+    if all_time == 0 or all_time < 600:
+        return [], 0
+
+    for i in range(1, 14):
         if data[i] != 0:
             if i == 1:
                 time.append(data[i])
@@ -64,12 +70,6 @@ async def create_figure(data):
             elif i == 13:
                 time.append(data[i])
                 labels.append("81-760А")
-
-    for i in time:
-        all_time += i
-
-    if all_time == 0:
-        return [], []
 
     labels = ["{} - {}".format(f"0{v / all_time:.2%}" if (v / all_time) * 100 < 9.99 else f"{v / all_time:.2%}", n)
               for n, v in zip(labels, time)]

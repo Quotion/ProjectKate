@@ -54,7 +54,7 @@ class Status(commands.Cog, name="Статус серверов"):
             max_players = data.info()["max_players"]
             map_server = data.info()["map"]
         except Exception as error:
-            self.logger.warning(error)
+            self.logger.debug(error)
             return 0, 0, 0, 0, 0, False
         else:
             return name, player_count, players, max_players, map_server, True

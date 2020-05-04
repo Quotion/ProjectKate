@@ -10,12 +10,12 @@ from modueles.ban_system import Ban
 from modueles.invests import Invests
 from modueles.rprequest import RPrequest
 from modueles.fun_gif import Fun_Gif
+import functions.embeds
 import discord
 import logging
 import json
 import os
 import io
-import functions.embeds
 
 client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'])
 
@@ -97,7 +97,7 @@ class Katherine(discord.Client):
 
             try:
                 roles[str(member.guild.id)]
-            except KeyError:
+            except Exception:
                 if not roles:
                     roles = {}
                 roles[str(member.guild.id)] = {}
@@ -125,7 +125,7 @@ class Katherine(discord.Client):
                 user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
                 roles = user.fetchone()[0]
                 roles[str(member.guild.id)]
-            except KeyError:
+            except Exception:
                 if not roles:
                     roles = {}
                 roles[str(member.guild.id)] = {}
@@ -171,9 +171,9 @@ class Katherine(discord.Client):
                         await channel.send(embed=embed, file=msg_changes)
                     else:
                         await channel.send(embed=embed)
+                    plot.close()
                     os.remove("changelog.txt")
                     msg_changes.close()
-                    plot.close()
                 except Exception as error:
                     logging.error(error)
 
