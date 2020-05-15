@@ -102,9 +102,6 @@ class Status(commands.Cog, name="Статус серверов"):
 
                                     name, player_count, players, max_players, map_server, check_status = self.get_info(server_address)
 
-                                    gamer.execute('SELECT nick, steamid FROM users_steam')
-                                    come_in_ply = gamer.fetchall()
-
                                     if check_status:
                                         i = 0
                                         ply = ['*Загружается на сервер.*'] * player_count
@@ -113,10 +110,11 @@ class Status(commands.Cog, name="Статус серверов"):
                                                    datetime.datetime.fromtimestamp(player["duration"]).strftime(":%M:%S")
                                             steamid = ''
                                             checked_ply = None
-                                            for lone in come_in_ply:
-                                                if player["name"].encode('utf8').decode('latin1') in lone[0]:
-                                                    steamid = lone[1]
-                                                    break
+                                            nick = player["name"].encode('utf8').decode('latin1')
+                                            gamer.execute('SELECT steamid FROM users_steam WHERE nick = %s', [nick])
+                                            gamer_data = gamer.fetchall()
+                                            if gamer_data:
+                                                steamid = gamer_data[0]
                                             try:
                                                 user.execute('SELECT "discordID" FROM users WHERE steamid = \'' + steamid + '\'')
                                                 checked_ply = user.fetchone()[0]
@@ -131,10 +129,10 @@ class Status(commands.Cog, name="Статус серверов"):
                                                 self.logger.error(error)
 
                                             if player["name"] != '' and steamid != '' and checked_ply:
-                                                ply[i] = str(i + 1) + '. ' + member.mention + ' `' + steamid + '` [' + time + ']'
+                                                ply[i] = str(i + 1) + '. ' + member.mention + ' `' + str(steamid[0]) + '` [' + str(time) + ']'
                                                 i += 1
                                             elif player["name"] != '' and steamid != '':
-                                                ply[i] = str(i + 1) + '. **' + player["name"] + '** `' + steamid + '` [' + time + ']'
+                                                ply[i] = str(i + 1) + '. **' + player["name"] + '** `' + str(steamid[0]) + '` [' + str(time) + ']'
                                                 i += 1
                                         title = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
                                         title.set_author(name=name,

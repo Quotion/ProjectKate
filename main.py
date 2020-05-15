@@ -10,6 +10,7 @@ from modueles.ban_system import Ban
 from modueles.invests import Invests
 from modueles.rprequest import RPrequest
 from modueles.fun_gif import Fun_Gif
+from modueles.achievements import Achievements
 import functions.embeds
 import discord
 import logging
@@ -38,9 +39,10 @@ class Katherine(discord.Client):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
-        # self.client.add_cog(Invests(client))
+        self.client.add_cog(Invests(client))
         self.client.add_cog(RPrequest(client))
         self.client.add_cog(Fun_Gif(client))
+        self.client.add_cog(Achievements(client))
 
     def on_ready(self):
 

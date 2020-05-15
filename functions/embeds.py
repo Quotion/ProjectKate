@@ -2,6 +2,7 @@ import discord
 import datetime
 import io
 import time
+import json
 
 
 async def member_join(member):
@@ -400,20 +401,20 @@ async def all_members(ctx, all_data):
     embed.set_author(name="Участники РП-сессии")
 
     if len(all_data) == 1:
-        embed.description = "Здесь моглы бы быть ваша реклама, но тут её нет."
+        embed.description = "Не смотри сюда. Здесь нет ничего."
         embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
         return embed
 
     things = list()
     for data in all_data:
         if "дцх" in data:
-            things.append(f"`ДЦХ` {data[0]} по {data[5]}-й линии")
+            things.append(f"`ДЦХ` **__{data[0]}__** по {data[5]}-й линии")
     for data in all_data:
         if "дсцп" in data:
-            things.append(f"`ДСЦП` {data[0]} по станции `{data[4]}`")
+            things.append(f"`ДСЦП` **__{data[0]}__** по станции `{data[4]}`")
     for data in all_data:
         if "маневровый" in data:
-            things.append(f"`Маневровый машинист` {data[0]} по станции `{data[4]}`")
+            things.append(f"`Маневровый машинист` **__{data[0]}__** по станции `{data[4]}`")
 
     drivers = list(list())
     for data in all_data:
@@ -424,8 +425,22 @@ async def all_members(ctx, all_data):
     print(drivers)
 
     for i in range(0, len(drivers)):
-        things.append(f"`Машинист` {drivers[i][1]}. Номер маршрута `{drivers[i][0]}`")
+        things.append(f"`Машинист` **__{drivers[i][1]}__**. Номер маршрута `{drivers[i][0]}`")
 
     embed.description = '\n'.join([thing for thing in things])
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
+
+async def achievement(member, achievement, guild):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+
+    embed = discord.Embed(colour=discord.Colour.from_rgb(0, 33, 55))
+
+    with open("language/achievements.json", "r", encoding="utf8") as file:
+        info = json.load(file)
+        embed.set_author(name=f"{member.name} выполнил достижение!\n{info[achievement]['title']}")
+        embed.set_image(url=info[achievement]["image"])
+        embed.description = f'{info[achievement]["text"]}\nОн получит `{info[achievement]["reward"]} рейтинга!`'
+        embed.set_footer(text=f"{guild.name} | {guild.system_channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+
+    return embed, info[achievement]["reward"]

@@ -440,13 +440,13 @@ class Ban(commands.Cog, name="Система банов"):
                 gamer.execute(f"UPDATE users_steam SET rank = 'vip' WHERE steamid = '{steamid}'")
                 database.commit()
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, buying_vip))
-            elif money >= 1000000 and rank.lower() == "premium":
-                user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
-                             format(1000000, ctx.author.id))
-                conn.commit()
-                gamer.execute(f"UPDATE users_steam SET rank = 'premium' WHERE steamid = '{steamid}'")
-                database.commit()
-                await ctx.send(embed=await functions.embeds.description(ctx.author.mention, buying_premium))
+            # elif money >= 1000000 and rank.lower() == "premium":
+            #     user.execute("UPDATE users SET goldmoney = goldmoney - {} WHERE \"discordID\" = {}".
+            #                  format(1000000, ctx.author.id))
+            #     conn.commit()
+            #     gamer.execute(f"UPDATE users_steam SET rank = 'premium' WHERE steamid = '{steamid}'")
+            #     database.commit()
+            #     await ctx.send(embed=await functions.embeds.description(ctx.author.mention, buying_premium))
             else:
                 await ctx.send(embed=await functions.embeds.description(ctx.author.mention, not_enough_gold))
         except Exception as error:

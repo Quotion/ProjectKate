@@ -185,7 +185,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[7]))
                 steam = user_mysql.fetchall()[0]
 
-                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1], time=steam[8],
+                user_mysql.execute("SELECT all_time_on_server FROM statistics WHERE steamid = '{}'".format(data[7]))
+                time = user_mysql.fetchone()
+
+                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1], time=time[0],
                                 rank=steam[2], name_of_currency=name_of_currency)
 
                 self.mysql.close_conn(conn_mysql, user_mysql)

@@ -1,0 +1,204 @@
+{
+  "first_entered": {
+    "title": "Привет, девачки.",
+    "text": "Девачки, первый раз зашёл на сервер.",
+    "image": "https://i.ibb.co/8DYf9QJ/First-Entered-Time.png",
+    "reward": 5
+  },
+
+  "first_deshka": {
+    "title": "Заводим старушку.",
+    "text": "Впервые сесть в поезд 81-702 на сервере.",
+    "image": "https://i.ibb.co/3SLCV4G/First-Time81702.png",
+    "reward": 10
+  },
+
+  "first_eshka": {
+    "title": "А это что за поезд?",
+    "text": "Впервые сесть в поезд 81-703 на сервере.",
+    "image": "https://i.ibb.co/CQms868/First-Time81703.png",
+    "reward": 10
+  },
+
+  "first_nomer": {
+    "title": "Я покоряю номера!",
+    "text": "Впервые сесть в поезд 81-717 на сервере.",
+    "image": "https://i.ibb.co/Q6dF6kM/First-Time81717.png",
+    "reward": 10
+  },
+
+  "first_tisu": {
+    "title": "Это что за покемон?",
+    "text": "Впервые сесть в поезд 81-718 на сервере.",
+    "image": "https://i.ibb.co/D9zhqbS/First-Time81718.png",
+    "reward": 10
+  },
+
+  "first_yauza": {
+    "title": "Ведро ли?",
+    "text": "Впервые сесть в поезд 81-720 на сервере.",
+    "image": "https://i.ibb.co/vVHNDSj/First-Time81720.png",
+    "reward": 10
+  },
+
+  "first_ubik": {
+    "title": "В Питере пить.",
+    "text": "Впервые сесть в поезд 81-722 на сервере.",
+    "image": "https://i.ibb.co/MPKbQLY/First-Time81722.png",
+    "reward": 10
+  },
+
+  "first_oka": {
+    "title": "О, ОКА вышла погулять.",
+    "text": "Впервые сесть в поезд 81-760 на сервере.",
+    "image": "https://i.ibb.co/mB897t1/First-Time81760.png",
+    "reward": 10
+  },
+
+  "first_oka_a": {
+    "title": "ЭТО ЧТО ГАРМОШКА!?",
+    "text": "Впервые сесть в поезд 81-760A на сервере.",
+    "image": "https://i.ibb.co/CbzbpDn/81760-AFirst-Time.jpg",
+    "reward": 10
+  },
+
+  "first_sopen": {
+    "title": "Ты как стрелку перевел?",
+    "text": "Воспользоваться командой !sopen.",
+    "image": "https://i.ibb.co/rysK8cS/First-Sopen-Time.png",
+    "reward": 10
+  },
+
+  "first_dch": {
+    "title": "Батя в здании.",
+    "text": "Встать на пост ДЦХ.",
+    "image": "https://i.ibb.co/XtMFLRY/DCHFirst-Time.jpg",
+    "reward": 25
+  },
+
+  "first_dscp": {
+    "title": "Вам в тупик?",
+    "text": "Встать на пост ДСЦП.",
+    "image": "https://i.ibb.co/HVY7XbR/First-Time-DCSP.png",
+    "reward": 20
+  },
+
+  "first_rtv": {
+    "title": "Выходим отсюда, разбийники.",
+    "text": "Воспользоваться командой !rtv.",
+    "image": "https://i.ibb.co/QKJ1vzF/RTVFirst-Time.png",
+    "reward": 10
+  },
+
+  "kill_player": {
+    "title": "Ненавижу печенегов.",
+    "text": "Убить игрока.",
+    "image": "https://i.ibb.co/M8Jj11q/Player-Kill.jpg",
+    "reward": 50
+  },
+
+  "first_sclose": {
+    "title": "Я вам запрещаю.",
+    "text": "Воспользоваться командой !sclose.",
+    "image": "https://i.ibb.co/3CZBJB6/Sclose-First-Time.png",
+    "reward": 10
+  },
+
+  "close_doors": {
+    "title": "Браво сыкс, закрываем двери.",
+    "text": "Впервые закрыть двери на сервере.",
+    "image": "https://i.ibb.co/zSjvfjz/First-Door-Close.jpg",
+    "reward": 15
+  },
+
+  "passed_signal": {
+    "title": "Устраиваю бунт.",
+    "text": "Проехал запрещающий сигнал светофора.",
+    "image": "https://i.ibb.co/J3Nq768/First-Time-Pass-Red-Signal.jpg",
+    "reward": 5
+  },
+
+  "plobm_broken": {
+    "title": "Я срываюсь.",
+    "text": "Впервые сорвать пломбу на сервере.",
+    "image": "https://i.ibb.co/0fwt6cx/First-Time-Blomb.jpg",
+    "reward": 5
+  },
+
+  "deshka_one_hours": {
+    "title": "О времена, о нравы!",
+    "text": "Провести за пультом 81-702 более 1 часа.",
+    "image": "https://i.ibb.co/WKh2L3N/81702-Hour1.png",
+    "reward": 25
+  },
+
+  "deshka_ten_hours": {
+    "title": "Без АРС? Беру! Дайте два!",
+    "text": "Провести за пультом 81-702 более 10 часа.",
+    "image": "https://i.ibb.co/vJjcJ6J/81702-Hour10.png",
+    "reward": 50
+  },
+
+  "nomer_one_hours": {
+    "title": "Это только начало.",
+    "text": "Провести за пультом 81-717 более 1 часа.",
+    "image": "https://i.ibb.co/T861V1N/81717-Hours1.jpg",
+    "reward": 25
+  },
+
+  "nomer_ten_hours": {
+    "title": "Брат, я люблю её. Береги её, барт.",
+    "text": "Провести за пультом 81-717 более 10 часов.",
+    "image": "https://i.ibb.co/6mqbW7Q/81717-Hours10.png",
+    "reward": 50
+  },
+
+  "yauza_one_hours": {
+    "title": "Яузу обкатал. Когда русич?",
+    "text": "Провести за пультом 81-720 более 1 часа.",
+    "image": "https://i.ibb.co/D1r88Xm/81720-Hours1.jpg",
+    "reward": 25
+  },
+
+  "yauza_ten_hours": {
+    "title": "Честное признание - я люблю ведра.",
+    "text": "Провести за пультом 81-720 более 10 часов.",
+    "image": "https://i.ibb.co/LnPZrmN/81720-Hours10.jpg",
+    "reward": 50
+  },
+
+  "oka_one_hours": {
+    "title": "ОКА - это шедевр.",
+    "text": "Провести за пультом 81-760 более 1 часа.",
+    "image": "https://i.ibb.co/nPwV7JT/81760-Hours1.png",
+    "reward": 25
+  },
+
+  "oka_ten_hours": {
+    "title": "Спасибо крикету за победу!",
+    "text": "Провести за пультом\n81-760 более 10 часа.",
+    "image": "https://i.ibb.co/k92qFVH/81760-Hours10.png",
+    "reward": 50
+  },
+
+  "all_time_one_hours": {
+    "title": "Я вас не переиграю?",
+    "text": "Я вас не уничтожу?",
+    "image": "https://i.ibb.co/nmwf3fJ/All-Time1-Hour.jpg",
+    "reward": 10
+  },
+
+  "all_time_ten_hours": {
+    "title": "Спонсор времени.",
+    "text": "Проиграть на сервере более 10 часов.",
+    "image": "https://i.ibb.co/SVfS8VT/All-Time-Server-Hours10.jpg",
+    "reward": 100
+  },
+
+  "all_time_hundred_hours": {
+    "title": "Стонкс.",
+    "text": "Проиграть на сервере более 100 часов.",
+    "image": "https://i.ibb.co/CV1n6WM/All-Time-On-Server100-Hours.png",
+    "reward": 1000
+  }
+}
