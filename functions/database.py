@@ -95,9 +95,6 @@ class PgSQLConnection(object):
                                     database=self.database)
             user = conn.cursor()
 
-            user.execute("DELETE FROM users WHERE nick = 'yauza_720'")
-            conn.commit()
-
             return conn, user
 
         except Exception as error:

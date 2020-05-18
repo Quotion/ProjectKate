@@ -100,7 +100,6 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def ready(self):
         await self.client.wait_until_ready()
 
-
     @commands.command(name='вкл_промо', help="<префикс>вкл_промо")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()

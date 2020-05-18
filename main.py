@@ -9,8 +9,6 @@ from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
 from modueles.invests import Invests
 from modueles.rprequest import RPrequest
-from modueles.fun_gif import Fun_Gif
-from modueles.achievements import Achievements
 import functions.embeds
 import discord
 import logging
@@ -41,8 +39,6 @@ class Katherine(discord.Client):
         self.client.add_cog(Ban(client))
         self.client.add_cog(Invests(client))
         self.client.add_cog(RPrequest(client))
-        self.client.add_cog(Fun_Gif(client))
-        self.client.add_cog(Achievements(client))
 
     def on_ready(self):
 
@@ -293,10 +289,8 @@ class Katherine(discord.Client):
 
             if message.author.id == self.client.user.id:
                 return
-            elif ("коллекция" in message.content or "коллекцию" in message.content) and message.guild.id == 580768441279971338:
+            elif ("коллекция" in message.content.lower() or "коллекцию" in message.content.lower()) and message.guild.id == 580768441279971338:
                 await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1735486737")
-            elif ("коллекция" in message.content or "коллекцию" in message.content) and message.guild.id == 683031919822110778:
-                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1726227848")
             else:
                 await self.client.process_commands(message)
 
