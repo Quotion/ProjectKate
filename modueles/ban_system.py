@@ -3,6 +3,7 @@ from functions.database import PgSQLConnection, MySQLConnection
 import functions
 import datetime
 import logging
+import steam.steamid
 from language.treatment_ru import *
 
 
@@ -289,7 +290,7 @@ class Ban(commands.Cog, name="Система банов"):
 
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
-        data = None
+        steamid = None
 
         try:
             user.execute("SELECT * FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
@@ -301,14 +302,27 @@ class Ban(commands.Cog, name="Система банов"):
             self.logger.error(error)
 
         if len(message) < 2:
-            await ctx.channel.send("{}, SteamID.".format(ctx.author.mention))
+            await ctx.channel.send("{}, вы не ввели данные.\nВведите либо `ссылку на ваш аккаунт Steam`, либо `SteamID`".format(ctx.author.mention))
             return
 
-        gamer.execute(f"SELECT * FROM users_steam WHERE steamid = '{message[1].upper()}'")
+        if message[1].startswith('https://steamcommunity.com/') or message[1].startswith('http://steamcommunity.com/'):
+            SteamID = steam.steamid.steam64_from_url(message[1])
+            if not SteamID:
+                await ctx.channel.send("{}, ваш SteamID не был найден в базе данных Steam.".format(ctx.author.mention))
+                return
+            steamid = steam.steamid.SteamID(SteamID).as_steam2_zero
+        else:
+            SteamID = steam.steamid.SteamID(message[1])
+            if not SteamID:
+                await ctx.channel.send("{}, ваш SteamID не был найден в базе данных Steam.".format(ctx.author.mention))
+                return
+            steamid = SteamID.as_steam2_zero
+
+        gamer.execute("SELECT nick FROM users_steam WHERE steamid = %s", [steamid])
         k = gamer.fetchone()
 
         try:
-            user.execute("SELECT * FROM users WHERE steamid = '{}'".format(message[1].upper()))
+            user.execute("SELECT * FROM users WHERE steamid = '{}'".format(steamid))
             var = user.fetchone()[0]
         except IndexError:
             pass

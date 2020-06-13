@@ -431,16 +431,16 @@ async def all_members(ctx, all_data):
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
 
-async def achievement(member, achievement, guild):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
-
-    embed = discord.Embed(colour=discord.Colour.from_rgb(0, 33, 55))
-
-    with open("language/achievements.json", "r", encoding="utf8") as file:
-        info = json.load(file)
-        embed.set_author(name=f"{member.name} выполнил достижение!\n{info[achievement]['title']}")
-        embed.set_image(url=info[achievement]["image"])
-        embed.description = f'{info[achievement]["text"]}\nОн получит `{info[achievement]["reward"]} рейтинга!`'
-        embed.set_footer(text=f"{guild.name} | {guild.system_channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
-
-    return embed, info[achievement]["reward"]
+# async def achievement(member, achievement, guild):
+#     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+#
+#     embed = discord.Embed(colour=discord.Colour.from_rgb(0, 33, 55))
+#
+#     with open("language/achievements.json", "r", encoding="utf8") as file:
+#         info = json.load(file)
+#         embed.set_author(name=f"{member.name} выполнил достижение!\n{info[achievement]['title']}")
+#         embed.set_image(url=info[achievement]["image"])
+#         embed.description = f'{info[achievement]["text"]}\nОн получит `{info[achievement]["reward"]} рейтинга!`'
+#         embed.set_footer(text=f"{guild.name} | {guild.system_channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+#
+#     return embed, info[achievement]["reward"]

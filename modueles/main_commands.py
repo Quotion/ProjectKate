@@ -105,13 +105,15 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def promo_on(self, ctx):
-        conn, user = None, None
-
         try:
             conn, user = self.pgsql.connect()
             user.execute("SELECT promocode FROM info WHERE guild_id = {}".format(ctx.guild.id))
             promo = user.fetchone()[0]
             if not promo or promo == "null":
+                user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 1}), ctx.guild.id))
+                conn.commit()
+                await ctx.send(promo_on.format(ctx.author.mention, self.client.command_prefix[0]))
+            elif promo['code'] == 0:
                 user.execute("UPDATE info SET promocode = %s WHERE guild_id = %s", (json.dumps({"amount": 0, "code": 1}), ctx.guild.id))
                 conn.commit()
                 await ctx.send(promo_on.format(ctx.author.mention, self.client.command_prefix[0]))
@@ -340,35 +342,42 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name='топ', help="<префикс>топ")
     @commands.cooldown(1, 5, commands.BucketType.user)
     async def top(self, ctx):
-        conn, user = None, None
+        all_data = list()
 
         try:
-            conn, user = self.pgsql.connect()
+            database, gamer = self.mysql.connect()
 
-            user.execute("SELECT \"discordID\", rating FROM users ORDER BY rating DESC LIMIT 5")
-            data = user.fetchall()
+            gamer.execute("SELECT steamid, all_time_on_server FROM statistics ORDER BY all_time_on_server DESC LIMIT 5")
+            data = gamer.fetchall()
 
             embed = discord.Embed(colour=discord.Colour.dark_gold())
 
-            embed.description = "Топ пользователей по рейтингу."
+            all_data.append("Топ игроков сервера.")
+
             for info, count in zip(data, range(0, len(data))):
-                name = None
-                try:
-                    name = self.client.get_user(int(info[0])).name
-                except Exception as error:
-                    self.logger.error(error)
-                    name = "no data"
-                finally:
-                    embed.add_field(name=f"{count + 1} место",
-                                    value=f"__{name}__: **{info[1]}** рейтинга",
-                                    inline=False)
+                gamer.execute("SELECT nick FROM users_steam WHERE steamid = %s;", [info[0]])
+                nick = gamer.fetchone()[0]
+
+                time = str(datetime.timedelta(seconds=info[1]))
+                if time.find("days") != -1:
+                    time = time.replace("days", "дн")
+                else:
+                    time = time.replace("day", "дн")
+
+                if time.find("weeks") != -1:
+                    time = time.replace("weeks", "нед")
+                else:
+                    time = time.replace("week", "нед")
+                all_data.append(f"{count + 1}. `{nick}` ({info[0]}) - {time}")
+
+            embed.description = '\n'.join([one_man for one_man in all_data])
 
             await ctx.send(embed=embed)
 
         except Exception as error:
             self.logger.error(error)
         finally:
-            self.pgsql.close_conn(conn, user)
+            self.mysql.close_conn(database, gamer)
 
     @commands.command(name='продать', help="<префикс>продать <количество рейтинга>")
     @commands.cooldown(1, 5, commands.BucketType.user)

@@ -25,8 +25,8 @@ logger.setLevel(logging.INFO)
 
 
 class Katherine(discord.Client):
-    def __init__(self, user):
-        self.client = user
+    def __init__(self, client):
+        self.client = client
 
         self.pgsql = PgSQLConnection()
 
@@ -290,7 +290,7 @@ class Katherine(discord.Client):
             if message.author.id == self.client.user.id:
                 return
             elif ("коллекция" in message.content.lower() or "коллекцию" in message.content.lower()) and message.guild.id == 580768441279971338:
-                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=1735486737")
+                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=783342247")
             else:
                 await self.client.process_commands(message)
 

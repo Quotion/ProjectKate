@@ -1,12 +1,11 @@
 import json
-import ast
 from pprint import pprint
 import discord
 import functions
 import datetime
 import logging
 from functions.database import MySQLConnection, PgSQLConnection
-import valve.source.a2s
+import steam.game_servers
 from discord.ext import commands, tasks
 from language.treatment_ru import *
 
@@ -45,23 +44,76 @@ class Status(commands.Cog, name="Статус серверов"):
 
         self.pgsql.close_conn(conn, user)
 
-    def get_info(self, server_address):
+    def __get_info(self, server_address):
         try:
-            data = valve.source.a2s.ServerQuerier(server_address)
-            name = data.info()["server_name"]
-            player_count = data.info()["player_count"]
-            players = data.players()
-            max_players = data.info()["max_players"]
-            map_server = data.info()["map"]
+            data = steam.game_servers.a2s_info(server_address, timeout=5)
+            players = steam.game_servers.a2s_players(server_address, timeout=5)
+            ping = data['_ping']
+            name = data['name']
+            map_server = data['map']
+            player_count = data['players']
+            max_players = data['max_players']
         except Exception as error:
-            self.logger.debug(error)
-            return 0, 0, 0, 0, 0, False
+            return 0, 0, 0, 0, 0, 0, False
         else:
-            return name, player_count, players, max_players, map_server, True
+            return ping, name, player_count, players, max_players, map_server, True
+
+    async def __get_all_servers_ip(self, servers):
+        servers_info = list()
+
+        for server in servers:
+            server = dict(server[0])
+            channel, message = None, None
+
+            try:
+                channel = self.client.get_channel(server['status']['channel'])
+            except KeyError:
+                continue
+            else:
+                if not channel:
+                    continue
+
+            for value in server['status'].keys():
+                if value == "channel":
+                    continue
+
+                try:
+                    message = await channel.fetch_message(server['status'][value]['message_id'])
+                except discord.NotFound:
+                    message = channel.id
+                except discord.HTTPException:
+                    message = await channel.fetch_message(server['status'][value]['message_id'])
+
+                value = value.split(":")
+                servers_info.append(((value[0], int(value[1])), message))
+
+        return servers_info
+
+    def __delete_ip(self, server_info):
+        data_of_server = None
+
+        try:
+            conn, user = self.pgsql.connect()
+            channel = self.client.get_channel(server_info[1])
+
+            user.execute(f"SELECT info FROM info WHERE guild_id = {channel.guild.id}")
+            data_of_server = user.fetchall()
+        except Exception as error:
+            self.logger.error(f"Info about guild where need deleted ip get unsuccesseful. Error:\n{error}")
+            return
+        finally:
+            self.pgsql.close_conn(conn, user)
+
+        del data_of_server['status'][server_info[0]]
+        user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(data_of_server), channel.guild.id))
+        conn.commit()
+        self.logger.info("{} was deleted from status".format(key))
+
+
 
     @tasks.loop(seconds=60.0)
     async def update(self):
-        data_of_servers, channel, message, delete_ip = None, None, None, None
+        data_of_servers, channel, message, delete_ip, database, gamer = None, None, None, None, None, None
 
         try:
             conn, user = self.pgsql.connect()
@@ -69,7 +121,8 @@ class Status(commands.Cog, name="Статус серверов"):
             user.execute("SELECT info FROM info")
             data_of_servers = user.fetchall()
         except Exception as error:
-            self.logger.error(error)
+            self.logger.error(f"Info about all servers get unsuccesseful. Error:\n{error}")
+            return
         finally:
             self.pgsql.close_conn(conn, user)
 
@@ -77,108 +130,93 @@ class Status(commands.Cog, name="Статус серверов"):
             conn, user = self.pgsql.connect()
             database, gamer = self.mysql.connect()
 
-            for buff_server in data_of_servers:
-                info_server = dict(buff_server[0])
-                if "status" not in info_server.keys():
-                    pass
+            servers_info = await self.__get_all_servers_ip(data_of_servers)
+
+            for server_info in servers_info:
+                if not isinstance(server_info[1], discord.Message):
+                    self.__delete_ip(server_info)
+
+                server_address = server_info[0]
+                message = server_info[1]
+
+                ping, name, player_count, players, max_players, map_server, check_status = self.__get_info(server_address)
+
+                if check_status:
+                    i = 0
+                    ply = ['*Загружается на сервер.*'] * player_count
+                    for player in players:
+                        time = str(int(datetime.datetime.fromtimestamp(player["duration"]).strftime("%H"))) + \
+                               datetime.datetime.fromtimestamp(player["duration"]).strftime(":%M:%S")
+                        steamid = ''
+                        checked_ply = None
+                        try:
+                            gamer.execute('SELECT steamid FROM users_steam WHERE nick = %s', [player["name"]])
+                            gamer_data = gamer.fetchone()[0]
+                            if gamer_data:
+                                steamid = gamer_data
+                        except IndexError:
+                            pass
+                        except TypeError:
+                            pass
+                        except Exception as error:
+                            self.logger.error(error)
+
+                        try:
+                            user.execute('SELECT "discordID" FROM users WHERE steamid = \'' + steamid + '\'')
+                            checked_ply = user.fetchone()[0]
+                            member = await message.guild.fetch_member(int(checked_ply))
+                        except TypeError:
+                            pass
+                        except IndexError:
+                            pass
+                        except discord.errors.NotFound:
+                            checked_ply = None
+                        except Exception as error:
+                            self.logger.error(error)
+
+                        if player["name"] != '' and steamid != '' and checked_ply:
+                            ply[i] = str(i + 1) + '. ' + member.mention + ' `' + str(steamid) + '` [' + str(time) + ']'
+                            i += 1
+                        elif player["name"] != '' and steamid != '':
+                            ply[i] = str(i + 1) + '. **' + player["name"] + '** `' + str(steamid) + '` [' + str(time) + ']'
+                            i += 1
+                        elif player["name"] != '' and not steamid != '':
+                            ply[i] = str(i + 1) + '. **' + player["name"] + '** `ДАННЫЕ ОТСУТСТВУЮТ`'
+                            i += 1
+                    title = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+                    title.set_author(name=name,
+                                     icon_url=message.guild.icon_url)
+                    title.add_field(name='Статус:',
+                                    value=f'__Онлайн__')
+                    title.add_field(name='Пинг:',
+                                    value=f"{int(ping)}ms")
+                    if player_count != 0:
+                        title.add_field(name=f'Всего: ',
+                                        value=f'{player_count}/{max_players} игроков')
+                        title.add_field(name='Игроки: ',
+                                        value='\n'.join([player for player in ply]),
+                                        inline=False)
+                    else:
+                        title.add_field(name=f'Всего: ',
+                                        value=f'¯\_(ツ)_/¯')
+                    title.add_field(name='Карта:',
+                                    value=f'{map_server}',
+                                    inline=False)
+
+                    title.add_field(name='IP-ссылка на сервер:',
+                                    value=f'steam://connect/{server_address[0]}:{server_address[1]}',
+                                    inline=False)
+                    title.set_thumbnail(
+                        url='https://poolwiki.peoplefone.com/images/6/66/Green_Tick.png')
+                    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+                    title.set_footer(text=f'Последнее обновление данных: {str(now.strftime("%d.%m.%y %H:%M:%S "))}')
+                    await message.edit(content=None, embed=title)
                 else:
-                    channel = self.client.get_channel(info_server['status']['channel'])
-                    if channel:
-                        for key in info_server['status'].keys():
-                            if key == "channel":
-                                pass
-                            else:
-                                buff = key.split(":")
-                                server_address = (buff[0], int(buff[1]))
-                                try:
-                                    message = await channel.fetch_message(info_server['status'][key]['message_id'])
-                                except discord.HTTPException:
-                                    delete_ip = key
-                                else:
-                                    try:
-
-                                        database.set_charset_collation('latin1', 'latin1_general_ci')
-                                        database.commit()
-
-                                        name, player_count, players, max_players, map_server, check_status = self.get_info(server_address)
-
-                                        if check_status:
-                                            i = 0
-                                            ply = ['*Загружается на сервер.*'] * player_count
-                                            for player in players["players"]:
-                                                time = str(int(datetime.datetime.fromtimestamp(player["duration"]).strftime("%H"))) + \
-                                                       datetime.datetime.fromtimestamp(player["duration"]).strftime(":%M:%S")
-                                                steamid = ''
-                                                checked_ply = None
-                                                nick = player["name"].encode('utf8').decode('latin1')
-                                                gamer.execute('SELECT steamid FROM users_steam WHERE nick = %s', [nick])
-                                                gamer_data = gamer.fetchone()[0]
-                                                if gamer_data:
-                                                    steamid = gamer_data
-                                                try:
-                                                    user.execute('SELECT "discordID" FROM users WHERE steamid = \'' + steamid + '\'')
-                                                    checked_ply = user.fetchone()[0]
-                                                    member = await channel.guild.fetch_member(int(checked_ply))
-                                                except TypeError as error:
-                                                    pass
-                                                except IndexError as error:
-                                                    pass
-                                                except discord.errors.NotFound:
-                                                    checked_ply = None
-                                                except Exception as error:
-                                                    self.logger.error(error)
-
-                                                if player["name"] != '' and steamid != '' and checked_ply:
-                                                    ply[i] = str(i + 1) + '. ' + member.mention + ' `' + str(steamid) + '` [' + str(time) + ']'
-                                                    i += 1
-                                                elif player["name"] != '' and steamid != '':
-                                                    ply[i] = str(i + 1) + '. **' + player["name"] + '** `' + str(steamid) + '` [' + str(time) + ']'
-                                                    i += 1
-                                            title = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-                                            title.set_author(name=name,
-                                                             icon_url=channel.guild.icon_url)
-                                            title.add_field(name='Статус:',
-                                                            value=f'__Онлайн__')
-                                            if player_count != 0:
-                                                title.add_field(name=f'Всего: ',
-                                                                value=f'{player_count}/{max_players} игроков')
-                                                title.add_field(name='Игроки: ',
-                                                                value='\n'.join([player for player in ply]),
-                                                                inline=False)
-                                            else:
-                                                title.add_field(name=f'Всего: ',
-                                                                value=f'¯\_(ツ)_/¯')
-                                            title.add_field(name='Карта:',
-                                                            value=f'{map_server}',
-                                                            inline=False)
-
-                                            title.add_field(name='IP-ссылка на сервер:',
-                                                            value=f'steam://connect/{server_address[0]}:{server_address[1]}',
-                                                            inline=False)
-                                            title.set_thumbnail(
-                                                url='https://poolwiki.peoplefone.com/images/6/66/Green_Tick.png')
-                                            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
-                                            title.set_footer(text=f'Последнее обновление данных: {str(now.strftime("%d.%m.%y %H:%M:%S "))}')
-                                            await message.edit(content=None, embed=title)
-                                        else:
-                                            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
-                                            await message.edit(content=f'Информация по `{server_address[0]}:{server_address[1]}`.'
-                                                                       f'\nВ данный момент сервер выключен или не удалось получить его данные.'
-                                                                       f'\nПоследнее обновление данных: __{str(now.strftime("%d.%m.%y %H:%M:%S "))}__',
-                                                               embed=None)
-
-                                    except Exception as error:
-                                        self.logger.error(error)
-
-            if delete_ip:
-                try:
-                    channel = self.client.get_channel(info_server['status']['channel'])
-                    message = await channel.fetch_message(info_server['status'][delete_ip]['message_id'])
-                except discord.HTTPException:
-                    del info_server['status'][delete_ip]
-                    user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info_server), channel.guild.id))
-                    conn.commit()
-                    self.logger.info("{} was deleted from status".format(key))
+                    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+                    await message.edit(content=f'Информация по `{server_address[0]}:{server_address[1]}`.'
+                                               f'\nВ данный момент сервер выключен или не удалось получить его данные.'
+                                               f'\nПоследнее обновление данных: __{str(now.strftime("%d.%m.%y %H:%M:%S "))}__',
+                                       embed=None)
 
         except Exception as error:
             self.logger.error(error)

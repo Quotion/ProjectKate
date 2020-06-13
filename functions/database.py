@@ -1,7 +1,6 @@
 import psycopg2
 import mysql.connector
 import logging
-import json
 
 
 class MySQLConnection(object):
@@ -28,13 +27,11 @@ class MySQLConnection(object):
                                            database=self.database)
             if conn.is_connected():
                 user = conn.cursor(buffered=True)
-                logging.debug("#Garr's mod: Cursor of database has loaded.")
-
                 user.execute("SET NAMES 'latin1'")
-                logging.debug("#Garr's mod: Encoding of database has changed to \"latin1\".")
-
                 conn.commit()
-                logging.debug("#Garr's mod: Database with Garry's mod information has successfully connected.")
+                # user.execute("SET CHARACTER SET 'latin1'")
+                # conn.commit()
+                logging.debug("#Garry's mod: Cursor of database has loaded.")
 
                 return conn, user
 
@@ -42,12 +39,12 @@ class MySQLConnection(object):
             self.logger.error(error)
 
         except Exception as error:
-            self.logger.debug(error)
+            self.logger.error(error)
 
     def close_conn(self, conn, user):
         try:
             user.close()
-            logging.debug("#Garr's mod: Cursor has unloaded.")
+            logging.debug("#Garry's mod: Cursor has unloaded.")
         except mysql.connector.Error as error:
             self.logger.error(error)
         except Exception as error:
@@ -55,7 +52,7 @@ class MySQLConnection(object):
 
         try:
             conn.close()
-            logging.debug("#Garr's mod: Connection has unloaded.")
+            logging.debug("#Garry's mod: Connection has unloaded.")
         except mysql.connector.Error as error:
             self.logger.error(error)
         except Exception as error:
@@ -97,8 +94,8 @@ class PgSQLConnection(object):
 
             return conn, user
 
-        except Exception as error:
-            self.logger.exception("Database connect")
+        except Exception:
+            self.logger.exception("Database not connect")
 
     def close_conn(self, conn, user):
         try:
