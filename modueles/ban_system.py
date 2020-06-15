@@ -401,10 +401,10 @@ class Ban(commands.Cog, name="Система банов"):
         except Exception as error:
             self.logger.error(error)
 
-    @commands.command(name="купить_ранг", help="<префикс>купить_ранг <vip (500000) или premium (1000000)>")
+    @commands.command(name="купить_ранг", help="<префикс>купить_ранг <vip (500000 золотой ВС)>")
     @commands.cooldown(1, 30, commands.BucketType.user)
     async def buy_rank(self, ctx, *, rank: str):
-        if rank.lower() != "vip" and rank.lower() != "premium":
+        if rank.lower() != "vip":
             await ctx.send(embed=await functions.embeds.description(ctx.author.mention, role_not_exist))
             return
 

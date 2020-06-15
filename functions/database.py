@@ -46,7 +46,7 @@ class MySQLConnection(object):
             user.close()
             logging.debug("#Garry's mod: Cursor has unloaded.")
         except mysql.connector.Error as error:
-            self.logger.error(error)
+            self.logger.warning(error)
         except Exception as error:
             self.logger.debug(error)
 
@@ -54,7 +54,7 @@ class MySQLConnection(object):
             conn.close()
             logging.debug("#Garry's mod: Connection has unloaded.")
         except mysql.connector.Error as error:
-            self.logger.error(error)
+            self.logger.warning(error)
         except Exception as error:
             self.logger.debug(error)
 
@@ -101,9 +101,9 @@ class PgSQLConnection(object):
         try:
             user.close()
         except mysql.connector.Error as error:
-            self.logger.error(error)
+            self.logger.warning(error)
 
         try:
             conn.close()
         except mysql.connector.Error as error:
-            self.logger.error(error)
+            self.logger.warning(error)

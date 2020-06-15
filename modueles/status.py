@@ -97,23 +97,23 @@ class Status(commands.Cog, name="Статус серверов"):
             channel = self.client.get_channel(server_info[1])
 
             user.execute(f"SELECT info FROM info WHERE guild_id = {channel.guild.id}")
-            data_of_server = user.fetchall()
+            data_of_server = user.fetchone()[0]
         except Exception as error:
             self.logger.error(f"Info about guild where need deleted ip get unsuccesseful. Error:\n{error}")
             return
         finally:
             self.pgsql.close_conn(conn, user)
 
-        del data_of_server['status'][server_info[0]]
+        ip = server_info[0][0] + ":" + str(server_info[0][1])
+
+        del data_of_server['status'][ip]
         user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(data_of_server), channel.guild.id))
         conn.commit()
         self.logger.info("{} was deleted from status".format(key))
 
-
-
     @tasks.loop(seconds=60.0)
     async def update(self):
-        data_of_servers, channel, message, delete_ip, database, gamer = None, None, None, None, None, None
+        data_of_servers, message, database, gamer = None, None, None, None
 
         try:
             conn, user = self.pgsql.connect()
@@ -135,6 +135,7 @@ class Status(commands.Cog, name="Статус серверов"):
             for server_info in servers_info:
                 if not isinstance(server_info[1], discord.Message):
                     self.__delete_ip(server_info)
+                    continue
 
                 server_address = server_info[0]
                 message = server_info[1]
@@ -283,7 +284,7 @@ class Status(commands.Cog, name="Статус серверов"):
         if address[1].isdigit() and len(msg) < 3:
             server_address = (address[0], int(address[1]))
             try:
-                valve.source.a2s.ServerQuerier(server_address)
+                steam.game_servers.a2s_info(server_address, timeout=5)
             except Exception as error:
                 self.logger.error(error)
                 await ctx.channel.send(server_not_valid.format(ctx.author.mention, msg[1]))
