@@ -89,11 +89,10 @@ class Status(commands.Cog, name="Статус серверов"):
 
         return servers_info
 
-    def __delete_ip(self, server_info):
+    def __delete_ip(self, server_info, conn, user):
         data_of_server = None
 
         try:
-            conn, user = self.pgsql.connect()
             channel = self.client.get_channel(server_info[1])
 
             user.execute(f"SELECT info FROM info WHERE guild_id = {channel.guild.id}")
@@ -101,15 +100,13 @@ class Status(commands.Cog, name="Статус серверов"):
         except Exception as error:
             self.logger.error(f"Info about guild where need deleted ip get unsuccesseful. Error:\n{error}")
             return
-        finally:
-            self.pgsql.close_conn(conn, user)
 
         ip = server_info[0][0] + ":" + str(server_info[0][1])
 
         del data_of_server['status'][ip]
         user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(data_of_server), channel.guild.id))
         conn.commit()
-        self.logger.info("{} was deleted from status".format(key))
+        self.logger.info("{} was deleted from status".format(ip))
 
     @tasks.loop(seconds=60.0)
     async def update(self):
@@ -134,7 +131,7 @@ class Status(commands.Cog, name="Статус серверов"):
 
             for server_info in servers_info:
                 if not isinstance(server_info[1], discord.Message):
-                    self.__delete_ip(server_info)
+                    self.__delete_ip(server_info, conn, user)
                     continue
 
                 server_address = server_info[0]

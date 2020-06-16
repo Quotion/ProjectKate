@@ -1,4 +1,5 @@
 import datetime
+import requests
 import logging
 import os
 import json
@@ -6,6 +7,12 @@ import json
 import discord
 from discord.ext import commands, tasks
 import random
+
+from PIL import Image
+from PIL import ImageFont
+from PIL import ImageDraw
+from io import BytesIO
+
 
 import functions.database
 import functions.helper
@@ -198,12 +205,93 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                 nick='Не синхронизирован', time='Не синхронизирован', rank='Не синхронизирован',
                                 name_of_currency=name_of_currency)
 
-            await ctx.send(embed=await functions.embeds.profile(all_data,
-                                                                name=user_ctx.name,
-                                                                icon_url=ctx.guild.icon_url,
-                                                                avatar_url=user_ctx.avatar_url,
-                                                                mention=user_ctx.mention,
-                                                                guild_name=ctx.guild.name))
+            try:
+                img_profile = Image.open("stuff/profile.jpg")
+
+                fileRequest = requests.get(ctx.author.avatar_url)
+                img_avatar = Image.open(BytesIO(fileRequest.content))
+
+                img_avatar = img_avatar.resize((300, 300), Image.ANTIALIAS)
+
+                img_profile.paste(img_avatar, (120, 60))
+
+                draw = ImageDraw.Draw(img_profile)
+                nick_font = ImageFont.truetype("stuff/Arial AMU.ttf", 80)
+                text_font = ImageFont.truetype("stuff/Arial AMU.ttf", 55)
+
+                draw.text((430, 220), ctx.author.name, (255,255,255), font=nick_font)
+
+                if str(ctx.author.status) == "online":
+                    draw.text((430, 310), "Онлайн", (255,255,255), font=text_font)
+                elif str(ctx.author.status) == "idle":
+                    draw.text((430, 310), "Отошел, но при это посмотрел профиль", (255,255,255), font=text_font)
+                elif str(ctx.author.status) == "dnd":
+                    draw.text((430, 310), "Не беспокоить", (255,255,255), font=text_font)
+                elif str(ctx.author.status) == "offline":
+                    draw.text((430, 310), "Не в сети, но мы то знаем...", (255,255,255), font=text_font)
+                else:
+                    draw.text((430, 310), "Онлайн", (255,255,255), font=text_font)
+
+                draw.text((390, 385), f"{all_data['money']} {name_of_currency} | {all_data['gold_money']} зол. {name_of_currency}", (255,255,255), font=text_font)
+
+                draw.text((340, 550), f"{all_data['rating']}", (255,255,255), font=text_font)
+
+                if all_data['rank'] == "user":
+                    draw.text((275, 645), "Машинист", (255,255,255), font=text_font)
+                elif all_data['rank'] == "user+":
+                    draw.text((275, 645), "Машинист+", (255,255,255), font=text_font)
+                elif all_data['rank'] == "admin":
+                    draw.text((275, 645), "VIP", (255,255,255), font=text_font)
+                elif all_data['rank'] == "operator":
+                    draw.text((275, 645), "Модератор", (255,255,255), font=text_font)
+                elif all_data['rank'] == "moderator":
+                    draw.text((275, 645), "Ст. модератор", (255,255,255), font=text_font)
+                elif all_data['rank'] == "premium":
+                    draw.text((275, 645), "Премим", (255,255,255), font=text_font)
+                elif all_data['rank'] == "moderator+":
+                    draw.text((275, 645), "Гл. модератор", (255,255,255), font=text_font)
+                elif all_data['rank'] == "superadmin":
+                    draw.text((275, 645), "Администратор", (255,255,255), font=text_font)
+
+                draw.text((350, 720), f"{all_data['steamid']}", (255,255,255), font=text_font)
+
+                all_time = all_data['time']
+
+                if all_data['time'] != "Не синхронизирован":
+
+                    all_time = str(datetime.timedelta(seconds=all_data['time']))
+
+                    if all_time.find("days") != -1:
+                        all_time = all_time.replace("days", "дн")
+                    else:
+                        all_time = all_time.replace("day", "дн")
+
+                    if all_time.find("weeks") != -1:
+                        all_time = all_time.replace("weeks", "нед")
+                    else:
+                        all_time = all_time.replace("week", "нед")
+
+                draw.text((560, 805), all_time, (255,255,255), font=text_font)
+
+                img_profile.save("stuff/custom_profile.jpg")
+
+                fileRequest.close()
+                img_profile.close()
+
+                with open("stuff/custom_profile.jpg", "rb") as jpg:
+                    file = discord.File(jpg, filename="profile.jpg")
+                    await ctx.send(file=file)
+
+                os.remove("stuff/custom_profile.jpg")
+            except Exception as ep:
+                self.logger.error(ep)
+
+            # await ctx.send(embed=await functions.embeds.profile(all_data,
+            #                                                     name=user_ctx.name,
+            #                                                     icon_url=ctx.guild.icon_url,
+            #                                                     avatar_url=user_ctx.avatar_url,
+            #                                                     mention=user_ctx.mention,
+            #                                                     guild_name=ctx.guild.name))
         except IndexError as error:
             self.logger.error(error)
 

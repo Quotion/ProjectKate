@@ -297,6 +297,5 @@ class Katherine(discord.Client):
 
 Katherine(client)
 
-
 with open("TOKEN", "r", encoding="utf8") as file:
     client.run(file.read().splitlines()[0])
