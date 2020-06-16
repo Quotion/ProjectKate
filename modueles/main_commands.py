@@ -216,10 +216,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 img_profile.paste(img_avatar, (120, 60))
 
                 draw = ImageDraw.Draw(img_profile)
-                nick_font = ImageFont.truetype("stuff/Arial AMU.ttf", 80)
+                nick_font = ImageFont.truetype("stuff/OpenSans.ttf", 80)
                 text_font = ImageFont.truetype("stuff/Arial AMU.ttf", 55)
+                nick_steam_font = ImageFont.truetype("stuff/OpenSans.ttf", 55)
 
-                draw.text((430, 220), ctx.author.name, (255,255,255), font=nick_font)
+                draw.text((430, 210), ctx.author.name, (255,255,255), font=nick_font)
 
                 if str(ctx.author.status) == "online":
                     draw.text((430, 310), "Онлайн", (255,255,255), font=text_font)
@@ -234,7 +235,9 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
                 draw.text((390, 385), f"{all_data['money']} {name_of_currency} | {all_data['gold_money']} зол. {name_of_currency}", (255,255,255), font=text_font)
 
-                draw.text((340, 550), f"{all_data['rating']}", (255,255,255), font=text_font)
+                draw.text((330, 545), all_data['nick'], (255,255,255), font=nick_steam_font)
+
+                draw.text((340, 475), f"{all_data['rating']}", (255,255,255), font=text_font)
 
                 if all_data['rank'] == "user":
                     draw.text((275, 645), "Машинист", (255,255,255), font=text_font)
@@ -247,7 +250,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 elif all_data['rank'] == "moderator":
                     draw.text((275, 645), "Ст. модератор", (255,255,255), font=text_font)
                 elif all_data['rank'] == "premium":
-                    draw.text((275, 645), "Премим", (255,255,255), font=text_font)
+                    draw.text((275, 645), "Премиум", (255,255,255), font=text_font)
                 elif all_data['rank'] == "moderator+":
                     draw.text((275, 645), "Гл. модератор", (255,255,255), font=text_font)
                 elif all_data['rank'] == "superadmin":
