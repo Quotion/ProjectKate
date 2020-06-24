@@ -3,6 +3,7 @@ import requests
 import logging
 import os
 import json
+from pprint import pprint
 
 import discord
 from discord.ext import commands, tasks
@@ -206,59 +207,61 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                 name_of_currency=name_of_currency)
 
             try:
-                img_profile = Image.open("stuff/profile.jpg")
+                img_profile = Image.open("stuff/profile2.jpg")
 
                 fileRequest = requests.get(ctx.author.avatar_url)
                 img_avatar = Image.open(BytesIO(fileRequest.content))
 
                 img_avatar = img_avatar.resize((300, 300), Image.ANTIALIAS)
 
-                img_profile.paste(img_avatar, (120, 60))
+                img_profile.paste(img_avatar, (120, 185))
 
                 draw = ImageDraw.Draw(img_profile)
                 nick_font = ImageFont.truetype("stuff/OpenSans.ttf", 80)
                 text_font = ImageFont.truetype("stuff/Arial AMU.ttf", 55)
                 nick_steam_font = ImageFont.truetype("stuff/OpenSans.ttf", 55)
 
-                draw.text((430, 210), ctx.author.name, (255,255,255), font=nick_font)
+                draw.text((430, 325), ctx.author.name, (255,255,255), font=nick_font)
 
                 if str(ctx.author.status) == "online":
-                    draw.text((430, 310), "Онлайн", (255,255,255), font=text_font)
+                    draw.text((430, 435), "Онлайн", (255,255,255), font=text_font)
                 elif str(ctx.author.status) == "idle":
-                    draw.text((430, 310), "Отошел, но при это посмотрел профиль", (255,255,255), font=text_font)
+                    draw.text((430, 435), "Отошел, но при это посмотрел профиль", (255,255,255), font=text_font)
                 elif str(ctx.author.status) == "dnd":
-                    draw.text((430, 310), "Не беспокоить", (255,255,255), font=text_font)
+                    draw.text((430, 435), "Не беспокоить", (255,255,255), font=text_font)
                 elif str(ctx.author.status) == "offline":
-                    draw.text((430, 310), "Не в сети, но мы то знаем...", (255,255,255), font=text_font)
+                    draw.text((430, 435), "Не в сети, но мы то знаем...", (255,255,255), font=text_font)
                 else:
-                    draw.text((430, 310), "Онлайн", (255,255,255), font=text_font)
+                    draw.text((430, 435), "Онлайн", (255,255,255), font=text_font)
 
-                draw.text((390, 385), f"{all_data['money']} {name_of_currency} | {all_data['gold_money']} зол. {name_of_currency}", (255,255,255), font=text_font)
+                draw.text((140, 510), f"Средства: {all_data['money']} {name_of_currency} | {all_data['gold_money']} зол. {name_of_currency}", (255,255,255), font=text_font)
 
-                draw.text((330, 545), all_data['nick'], (255,255,255), font=nick_steam_font)
+                draw.text((140, 670), f"Имя на сервере: {all_data['nick']}", (255,255,255), font=nick_steam_font)
 
-                draw.text((340, 475), f"{all_data['rating']}", (255,255,255), font=text_font)
+                draw.text((140, 600), f"Рейтинг: {all_data['rating']}", (255,255,255), font=text_font)
 
                 if all_data['rank'] == "user":
-                    draw.text((275, 645), "Машинист", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: Машинист", (255,255,255), font=text_font)
                 elif all_data['rank'] == "user+":
-                    draw.text((275, 645), "Машинист+", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: Машинист+", (255,255,255), font=text_font)
                 elif all_data['rank'] == "admin":
-                    draw.text((275, 645), "VIP", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: VIP", (255,255,255), font=text_font)
                 elif all_data['rank'] == "operator":
-                    draw.text((275, 645), "Модератор", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: Модератор", (255,255,255), font=text_font)
                 elif all_data['rank'] == "moderator":
-                    draw.text((275, 645), "Ст. модератор", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: Ст. модератор", (255,255,255), font=text_font)
                 elif all_data['rank'] == "premium":
-                    draw.text((275, 645), "Премиум", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: Премиум", (255,255,255), font=text_font)
                 elif all_data['rank'] == "moderator+":
-                    draw.text((275, 645), "Гл. модератор", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: Гл. модератор", (255,255,255), font=text_font)
                 elif all_data['rank'] == "superadmin":
-                    draw.text((275, 645), "Администратор", (255,255,255), font=text_font)
+                    draw.text((140, 770), "Ранг: Администратор", (255,255,255), font=text_font)
+                elif all_data['rank'] == "Не синхронизирован":
+                    draw.text((140, 770), "Ранг: Не синхронизирован", (255,255,255), font=text_font)
 
-                draw.text((350, 720), f"{all_data['steamid']}", (255,255,255), font=text_font)
+                draw.text((140, 845), f"SteamID: {all_data['steamid']}", (255,255,255), font=text_font)
 
-                all_time = all_data['time']
+                all_time, embed = None, None
 
                 if all_data['time'] != "Не синхронизирован":
 
@@ -274,7 +277,14 @@ class MainCommands(commands.Cog, name="Основные команды"):
                     else:
                         all_time = all_time.replace("week", "нед")
 
-                draw.text((560, 805), all_time, (255,255,255), font=text_font)
+                    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+                    embed.description = f"**__Информация для копирования:__**\n**SteamID**: {all_data['steamid']}\n**Ник**: {all_data['nick']}\n**Роль для изменения в базе данных**: {all_data['rank']}"
+                    embed.set_footer(text="Зачем? Чтобы было.")
+
+                else:
+                    all_time = "Не синхронизирован"
+
+                draw.text((140, 930), f"Время на сервере: {all_time}", (255,255,255), font=text_font)
 
                 img_profile.save("stuff/custom_profile.jpg")
 
@@ -283,7 +293,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
                 with open("stuff/custom_profile.jpg", "rb") as jpg:
                     file = discord.File(jpg, filename="profile.jpg")
-                    await ctx.send(file=file)
+                    if embed:
+                        await ctx.send(embed=embed, file=file)
+                    else:
+                        await ctx.send(file=file)
 
                 os.remove("stuff/custom_profile.jpg")
             except Exception as ep:
@@ -328,7 +341,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             with open("purgedeleted.txt", "w", encoding='utf8') as file:
                 file.write("Удаленные сообщения:\n\n\n")
                 for message in messages:
-                    file.write("\n" + str(message.created_at) + ": " + message.content)
+                    file.write("\n" + str(message.author.name) + "#" +str(message.author.discriminator) + " (" + str(message.created_at) + "): " + message.content)
 
             file = open("purgedeleted.txt", "rb")
             msgs_deleted = discord.File(file, filename="All_deleted_message.txt")
@@ -626,7 +639,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         for i in range(1, len(answers) + 1):
             await msg.add_reaction(f"{i}\N{combining enclosing keycap}")
 
-    @commands.command(name="выбор_на_время", help="<префикс>выбор_на_время <вопрос> <время (часы)> <+1> <+2>...<+9>")
+    @commands.command(name="выбор_на_время", help="<префикс>выбор_на_время <вопрос> <+1> <+2>...<+9>")
     @commands.cooldown(1, 60, commands.BucketType.user)
     async def polls_time(self, ctx):
         message = ctx.message.content.split()
@@ -650,6 +663,60 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         for i in range(1, len(answers) + 1):
             await msg.add_reaction(f"{i}\N{combining enclosing keycap}")
+
+    @commands.command(name="шаблон", help="<префикс>шаблон <канал, куда будет отправленно сообщение>")
+    @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 30, commands.BucketType.user)
+    async def patterns(self, ctx):
+        channel = None
+        if ctx.message.channel_mentions:
+            channel = ctx.message.channel_mentions[0]
+
+        embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+        embed.description = ""
+
+        if ctx.message.content.find("[") != -1:
+            title = ctx.message.content.split("[")[1].split("]")[0]
+            embed.set_author(name=title.title().replace("_", "").replace("*", "").replace("~", ""))
+            lines = ctx.message.content.replace(f"[{title}]", "").split("\n")
+
+        else:
+            lines = ctx.message.content.split("\n")
+
+        lines = lines[1:len(lines)]
+
+        for line in lines:
+            if line:
+                embed.description = embed.description + line + "\n"
+
+        message = await ctx.send("Сообщение будет удалено через минуту.\nПрежде чем ставить ✅, **__провертье его на корректность!__**", embed=embed, delete_after=60.0)
+        await message.add_reaction("✅")
+        await message.add_reaction("❌")
+
+        reaction, user = await self.client.wait_for('reaction_add', check=lambda r, u: u.id != self.client.user.id)
+
+        if reaction.emoji == "✅" and channel:
+            await channel.send(embed=embed)
+            await message.delete()
+            await ctx.send("Сообщение было отправлено в канал, который вы указали.\n**__Изменить текст уже не удасться!__**", delete_after=7.0)
+        if reaction.emoji == "✅" and not channel:
+            await message.edit(content=None, embed=embed)
+            await message.clear_reactions()
+            await ctx.send("Сообщение было отправлено в этот канал.", delete_after=5.0)
+        elif reaction.emoji == "❌":
+            with open("deleted_text.txt", "w", encoding="utf8") as file:
+                file.write(ctx.message.content)
+
+            file = open("deleted_text.txt", "rb")
+            temp = discord.File(file, filename="deteled_template.txt")
+
+            await ctx.send(file=temp)
+            file.close()
+            os.remove("deleted_text.txt")
+            temp.close()
+
+            await message.delete()
+
 
     @commands.command(name="ботбан", help="<префикс>ботбан <хайлайт роли>")
     @commands.has_permissions(administrator=True)

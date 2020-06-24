@@ -152,7 +152,7 @@ class Katherine(discord.Client):
 
             conn, user = self.pgsql.connect()
 
-            guild_id = msg_before.guild.id
+            guild_id, plot = msg_before.guild.id, None
 
             user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
             info = user.fetchone()[0]
@@ -164,21 +164,24 @@ class Katherine(discord.Client):
 
                 try:
                     plot = io.open("changelog.txt", "rb")
+                except FileNotFoundError:
+                    await channel.send(embed=embed)
+                except Exception as error:
+                    logging.error(error)
+                else:
                     msg_changes = discord.File(plot, filename="Message_changes.txt")
-                    if msg_changes:
-                        await channel.send(embed=embed, file=msg_changes)
-                    else:
-                        await channel.send(embed=embed)
+                    await channel.send(embed=embed, file=msg_changes)
                     plot.close()
                     os.remove("changelog.txt")
                     msg_changes.close()
-                except Exception as error:
-                    logging.error(error)
 
             self.pgsql.close_conn(conn, user)
 
         @self.client.event
         async def on_message_delete(message):
+            if message.author.id == self.client.user.id:
+                return
+
             conn, user = self.pgsql.connect()
 
             guild_id, check, msg_delete = message.guild.id, None, None

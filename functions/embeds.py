@@ -42,11 +42,11 @@ async def message_edit(before, after):
     content_after = after.content
     check = False
 
-    if len(before.content) > 50:
-        content_before = before.content[0:40] + "..."
+    if len(before.content) > 100:
+        content_before = before.content[0:100] + "..."
         check = True
-    if len(after.content) > 50:
-        content_after = after.content[0:40] + "..."
+    if len(after.content) > 100:
+        content_after = after.content[0:100] + "..."
         check = True
 
     if check:
