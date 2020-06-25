@@ -665,7 +665,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await msg.add_reaction(f"{i}\N{combining enclosing keycap}")
 
     @commands.command(name="шаблон", help="<префикс>шаблон <канал, куда будет отправленно сообщение>")
-    @commands.has_permissions(administrator=True)
+    @commands.has_permissions(mention_everyone=True)
     @commands.cooldown(1, 30, commands.BucketType.user)
     async def patterns(self, ctx):
         channel = None
@@ -675,19 +675,17 @@ class MainCommands(commands.Cog, name="Основные команды"):
         embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
         embed.description = ""
 
-        if ctx.message.content.find("[") != -1:
-            title = ctx.message.content.split("[")[1].split("]")[0]
-            embed.set_author(name=title.title().replace("_", "").replace("*", "").replace("~", ""))
-            lines = ctx.message.content.replace(f"[{title}]", "").split("\n")
+        lines = ctx.message.content.split("\n")
 
-        else:
-            lines = ctx.message.content.split("\n")
+        if len(lines) == 1:
+            await ctx.send("Текст сообщения не был найден.")
 
-        lines = lines[1:len(lines)]
+        embed.set_author(name=lines[1].replace("_", "").replace("*", "").replace("~", ""))
+
+        lines = lines[2:len(lines)]
 
         for line in lines:
-            if line:
-                embed.description = embed.description + line + "\n"
+            embed.description = embed.description + line + "\n"
 
         message = await ctx.send("Сообщение будет удалено через минуту.\nПрежде чем ставить ✅, **__провертье его на корректность!__**", embed=embed, delete_after=60.0)
         await message.add_reaction("✅")
@@ -696,14 +694,17 @@ class MainCommands(commands.Cog, name="Основные команды"):
         reaction, user = await self.client.wait_for('reaction_add', check=lambda r, u: u.id != self.client.user.id)
 
         if reaction.emoji == "✅" and channel:
+            await ctx.message.delete()
             await channel.send(embed=embed)
             await message.delete()
             await ctx.send("Сообщение было отправлено в канал, который вы указали.\n**__Изменить текст уже не удасться!__**", delete_after=7.0)
         if reaction.emoji == "✅" and not channel:
-            await message.edit(content=None, embed=embed)
+            await ctx.message.delete()
+            await ctx.send(embed=embed)
             await message.clear_reactions()
             await ctx.send("Сообщение было отправлено в этот канал.", delete_after=5.0)
         elif reaction.emoji == "❌":
+            await ctx.message.delete()
             with open("deleted_text.txt", "w", encoding="utf8") as file:
                 file.write(ctx.message.content)
 
