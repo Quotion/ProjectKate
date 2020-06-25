@@ -700,6 +700,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send("Сообщение было отправлено в канал, который вы указали.\n**__Изменить текст уже не удасться!__**", delete_after=7.0)
         if reaction.emoji == "✅" and not channel:
             await ctx.message.delete()
+            await message.delete()
             await ctx.send(embed=embed)
             await message.clear_reactions()
             await ctx.send("Сообщение было отправлено в этот канал.", delete_after=5.0)
