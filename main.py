@@ -9,6 +9,7 @@ from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
 from modueles.invests import Invests
 from modueles.rprequest import RPrequest
+from modueles.orders import Orders
 import functions.embeds
 import discord
 import logging
@@ -39,6 +40,7 @@ class Katherine(discord.Client):
         self.client.add_cog(Ban(client))
         self.client.add_cog(Invests(client))
         self.client.add_cog(RPrequest(client))
+        self.client.add_cog(Orders(client))
 
     def on_ready(self):
 

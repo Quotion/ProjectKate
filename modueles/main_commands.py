@@ -170,149 +170,150 @@ class MainCommands(commands.Cog, name="Основные команды"):
         conn, user = self.pgsql.connect()
         data = None
 
-        user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
-        name_of_currency = user.fetchone()[0]['char_of_currency']
+        async with ctx.typing():
+            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            name_of_currency = user.fetchone()[0]['char_of_currency']
 
-        if len(ctx.message.content.split()) == 2 and len(ctx.message.mentions) == 1:
-            if await MainCommands.profile_exist(self, self.client.get_user(ctx.message.mentions[0].id), ctx.channel):
-                pass
-            user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.message.mentions[0].id])
-            user_ctx = self.client.get_user(ctx.message.mentions[0].id)
-        elif len(ctx.message.content.split()) == 1:
-            user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.author.id])
-            user_ctx = ctx.author
-        else:
-            await ctx.send(something_went_wrong)
-            return
-        try:
-            data = user.fetchall()[0]
-        except IndexError as error:
-            self.logger.error(error)
-        try:
-            if data[7] and data[7] != "None":
-                conn_mysql, user_mysql = self.mysql.connect()
-                user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[7]))
-                steam = user_mysql.fetchall()[0]
-
-                user_mysql.execute("SELECT all_time_on_server FROM statistics WHERE steamid = '{}'".format(data[7]))
-                time = user_mysql.fetchone()
-
-                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1], time=time[0],
-                                rank=steam[2], name_of_currency=name_of_currency)
-
-                self.mysql.close_conn(conn_mysql, user_mysql)
+            if len(ctx.message.content.split()) == 2 and len(ctx.message.mentions) == 1:
+                if await MainCommands.profile_exist(self, self.client.get_user(ctx.message.mentions[0].id), ctx.channel):
+                    pass
+                user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.message.mentions[0].id])
+                user_ctx = self.client.get_user(ctx.message.mentions[0].id)
+            elif len(ctx.message.content.split()) == 1:
+                user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.author.id])
+                user_ctx = ctx.author
             else:
-                all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid='Не синхронизирован',
-                                nick='Не синхронизирован', time='Не синхронизирован', rank='Не синхронизирован',
-                                name_of_currency=name_of_currency)
-
+                await ctx.send(something_went_wrong)
+                return
             try:
-                img_profile = Image.open("stuff/profile2.jpg")
+                data = user.fetchall()[0]
+            except IndexError as error:
+                self.logger.error(error)
+            try:
+                if data[7] and data[7] != "None":
+                    conn_mysql, user_mysql = self.mysql.connect()
+                    user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[7]))
+                    steam = user_mysql.fetchall()[0]
 
-                fileRequest = requests.get(ctx.author.avatar_url)
-                img_avatar = Image.open(BytesIO(fileRequest.content))
+                    user_mysql.execute("SELECT all_time_on_server FROM statistics WHERE steamid = '{}'".format(data[7]))
+                    time = user_mysql.fetchone()
 
-                img_avatar = img_avatar.resize((300, 300), Image.ANTIALIAS)
+                    all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[7], nick=steam[1], time=time[0],
+                                    rank=steam[2], name_of_currency=name_of_currency)
 
-                img_profile.paste(img_avatar, (120, 185))
-
-                draw = ImageDraw.Draw(img_profile)
-                nick_font = ImageFont.truetype("stuff/OpenSans.ttf", 80)
-                text_font = ImageFont.truetype("stuff/Arial AMU.ttf", 55)
-                nick_steam_font = ImageFont.truetype("stuff/OpenSans.ttf", 55)
-
-                draw.text((430, 325), ctx.author.name, (255,255,255), font=nick_font)
-
-                if str(ctx.author.status) == "online":
-                    draw.text((430, 435), "Онлайн", (255,255,255), font=text_font)
-                elif str(ctx.author.status) == "idle":
-                    draw.text((430, 435), "Отошел, но при это посмотрел профиль", (255,255,255), font=text_font)
-                elif str(ctx.author.status) == "dnd":
-                    draw.text((430, 435), "Не беспокоить", (255,255,255), font=text_font)
-                elif str(ctx.author.status) == "offline":
-                    draw.text((430, 435), "Не в сети, но мы то знаем...", (255,255,255), font=text_font)
+                    self.mysql.close_conn(conn_mysql, user_mysql)
                 else:
-                    draw.text((430, 435), "Онлайн", (255,255,255), font=text_font)
+                    all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid='Не синхронизирован',
+                                    nick='Не синхронизирован', time='Не синхронизирован', rank='Не синхронизирован',
+                                    name_of_currency=name_of_currency)
 
-                draw.text((140, 510), f"Средства: {all_data['money']} {name_of_currency} | {all_data['gold_money']} зол. {name_of_currency}", (255,255,255), font=text_font)
+                try:
+                    img_profile = Image.open("stuff/profile2.jpg")
 
-                draw.text((140, 670), f"Имя на сервере: {all_data['nick']}", (255,255,255), font=nick_steam_font)
+                    fileRequest = requests.get(ctx.author.avatar_url)
+                    img_avatar = Image.open(BytesIO(fileRequest.content))
 
-                draw.text((140, 600), f"Рейтинг: {all_data['rating']}", (255,255,255), font=text_font)
+                    img_avatar = img_avatar.resize((300, 300), Image.ANTIALIAS)
 
-                if all_data['rank'] == "user":
-                    draw.text((140, 770), "Ранг: Машинист", (255,255,255), font=text_font)
-                elif all_data['rank'] == "user+":
-                    draw.text((140, 770), "Ранг: Машинист+", (255,255,255), font=text_font)
-                elif all_data['rank'] == "admin":
-                    draw.text((140, 770), "Ранг: VIP", (255,255,255), font=text_font)
-                elif all_data['rank'] == "operator":
-                    draw.text((140, 770), "Ранг: Модератор", (255,255,255), font=text_font)
-                elif all_data['rank'] == "moderator":
-                    draw.text((140, 770), "Ранг: Ст. модератор", (255,255,255), font=text_font)
-                elif all_data['rank'] == "premium":
-                    draw.text((140, 770), "Ранг: Премиум", (255,255,255), font=text_font)
-                elif all_data['rank'] == "moderator+":
-                    draw.text((140, 770), "Ранг: Гл. модератор", (255,255,255), font=text_font)
-                elif all_data['rank'] == "superadmin":
-                    draw.text((140, 770), "Ранг: Администратор", (255,255,255), font=text_font)
-                elif all_data['rank'] == "Не синхронизирован":
-                    draw.text((140, 770), "Ранг: Не синхронизирован", (255,255,255), font=text_font)
+                    img_profile.paste(img_avatar, (120, 185))
 
-                draw.text((140, 845), f"SteamID: {all_data['steamid']}", (255,255,255), font=text_font)
+                    draw = ImageDraw.Draw(img_profile)
+                    nick_font = ImageFont.truetype("stuff/OpenSans.ttf", 80)
+                    text_font = ImageFont.truetype("stuff/Arial AMU.ttf", 55)
+                    nick_steam_font = ImageFont.truetype("stuff/OpenSans.ttf", 55)
 
-                all_time, embed = None, None
+                    draw.text((430, 325), ctx.author.name, (255,255,255), font=nick_font)
 
-                if all_data['time'] != "Не синхронизирован":
-
-                    all_time = str(datetime.timedelta(seconds=all_data['time']))
-
-                    if all_time.find("days") != -1:
-                        all_time = all_time.replace("days", "дн")
+                    if str(ctx.author.status) == "online":
+                        draw.text((430, 435), "Онлайн", (255,255,255), font=text_font)
+                    elif str(ctx.author.status) == "idle":
+                        draw.text((430, 435), "Отошел, но при это посмотрел профиль", (255,255,255), font=text_font)
+                    elif str(ctx.author.status) == "dnd":
+                        draw.text((430, 435), "Не беспокоить", (255,255,255), font=text_font)
+                    elif str(ctx.author.status) == "offline":
+                        draw.text((430, 435), "Не в сети, но мы то знаем...", (255,255,255), font=text_font)
                     else:
-                        all_time = all_time.replace("day", "дн")
+                        draw.text((430, 435), "Онлайн", (255,255,255), font=text_font)
 
-                    if all_time.find("weeks") != -1:
-                        all_time = all_time.replace("weeks", "нед")
+                    draw.text((140, 510), f"Средства: {all_data['money']} {name_of_currency} | {all_data['gold_money']} зол. {name_of_currency}", (255,255,255), font=text_font)
+
+                    draw.text((140, 670), f"Имя на сервере: {all_data['nick']}", (255,255,255), font=nick_steam_font)
+
+                    draw.text((140, 600), f"Рейтинг: {all_data['rating']}", (255,255,255), font=text_font)
+
+                    if all_data['rank'] == "user":
+                        draw.text((140, 770), "Ранг: Машинист", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "user+":
+                        draw.text((140, 770), "Ранг: Машинист+", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "admin":
+                        draw.text((140, 770), "Ранг: VIP", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "operator":
+                        draw.text((140, 770), "Ранг: Модератор", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "moderator":
+                        draw.text((140, 770), "Ранг: Ст. модератор", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "premium":
+                        draw.text((140, 770), "Ранг: Премиум", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "moderator+":
+                        draw.text((140, 770), "Ранг: Гл. модератор", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "superadmin":
+                        draw.text((140, 770), "Ранг: Администратор", (255,255,255), font=text_font)
+                    elif all_data['rank'] == "Не синхронизирован":
+                        draw.text((140, 770), "Ранг: Не синхронизирован", (255,255,255), font=text_font)
+
+                    draw.text((140, 845), f"SteamID: {all_data['steamid']}", (255,255,255), font=text_font)
+
+                    all_time, embed = None, None
+
+                    if all_data['time'] != "Не синхронизирован":
+
+                        all_time = str(datetime.timedelta(seconds=all_data['time']))
+
+                        if all_time.find("days") != -1:
+                            all_time = all_time.replace("days", "дн")
+                        else:
+                            all_time = all_time.replace("day", "дн")
+
+                        if all_time.find("weeks") != -1:
+                            all_time = all_time.replace("weeks", "нед")
+                        else:
+                            all_time = all_time.replace("week", "нед")
+
+                        embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+                        embed.description = f"**__Информация для копирования:__**\n**SteamID**: {all_data['steamid']}\n**Ник**: {all_data['nick']}\n**Роль для изменения в базе данных**: {all_data['rank']}"
+                        embed.set_footer(text="Зачем? Чтобы было.")
+
                     else:
-                        all_time = all_time.replace("week", "нед")
+                        all_time = "Не синхронизирован"
 
-                    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-                    embed.description = f"**__Информация для копирования:__**\n**SteamID**: {all_data['steamid']}\n**Ник**: {all_data['nick']}\n**Роль для изменения в базе данных**: {all_data['rank']}"
-                    embed.set_footer(text="Зачем? Чтобы было.")
+                    draw.text((140, 930), f"Время на сервере: {all_time}", (255,255,255), font=text_font)
 
-                else:
-                    all_time = "Не синхронизирован"
+                    img_profile.save("stuff/custom_profile.jpg")
 
-                draw.text((140, 930), f"Время на сервере: {all_time}", (255,255,255), font=text_font)
+                    fileRequest.close()
+                    img_profile.close()
 
-                img_profile.save("stuff/custom_profile.jpg")
+                    with open("stuff/custom_profile.jpg", "rb") as jpg:
+                        file = discord.File(jpg, filename="profile.jpg")
+                        if embed:
+                            await ctx.send(embed=embed, file=file)
+                        else:
+                            await ctx.send(file=file)
 
-                fileRequest.close()
-                img_profile.close()
+                    os.remove("stuff/custom_profile.jpg")
+                except Exception as ep:
+                    self.logger.error(ep)
 
-                with open("stuff/custom_profile.jpg", "rb") as jpg:
-                    file = discord.File(jpg, filename="profile.jpg")
-                    if embed:
-                        await ctx.send(embed=embed, file=file)
-                    else:
-                        await ctx.send(file=file)
+                # await ctx.send(embed=await functions.embeds.profile(all_data,
+                #                                                     name=user_ctx.name,
+                #                                                     icon_url=ctx.guild.icon_url,
+                #                                                     avatar_url=user_ctx.avatar_url,
+                #                                                     mention=user_ctx.mention,
+                #                                                     guild_name=ctx.guild.name))
+            except IndexError as error:
+                self.logger.error(error)
 
-                os.remove("stuff/custom_profile.jpg")
-            except Exception as ep:
-                self.logger.error(ep)
-
-            # await ctx.send(embed=await functions.embeds.profile(all_data,
-            #                                                     name=user_ctx.name,
-            #                                                     icon_url=ctx.guild.icon_url,
-            #                                                     avatar_url=user_ctx.avatar_url,
-            #                                                     mention=user_ctx.mention,
-            #                                                     guild_name=ctx.guild.name))
-        except IndexError as error:
-            self.logger.error(error)
-
-        finally:
-            self.pgsql.close_conn(conn, user)
+            finally:
+                self.pgsql.close_conn(conn, user)
 
     @commands.command(name='удалить', help="<префикс>удалить <количество сообщений (меньше 100)>")
     @commands.cooldown(1, 5, commands.BucketType.user)
@@ -687,7 +688,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         for line in lines:
             embed.description = embed.description + line + "\n"
 
-        message = await ctx.send("Сообщение будет удалено через минуту.\nПрежде чем ставить ✅, **__провертье его на корректность!__**", embed=embed, delete_after=60.0)
+        message = await ctx.send(check_message, embed=embed, delete_after=60.0)
         await message.add_reaction("✅")
         await message.add_reaction("❌")
 
@@ -697,13 +698,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.message.delete()
             await channel.send(embed=embed)
             await message.delete()
-            await ctx.send("Сообщение было отправлено в канал, который вы указали.\n**__Изменить текст уже не удасться!__**", delete_after=7.0)
+            await ctx.send(message_send, delete_after=7.0)
         if reaction.emoji == "✅" and not channel:
             await ctx.message.delete()
             await message.delete()
             await ctx.send(embed=embed)
             await message.clear_reactions()
-            await ctx.send("Сообщение было отправлено в этот канал.", delete_after=5.0)
+            await ctx.send(message_send_in_this_channel, delete_after=5.0)
         elif reaction.emoji == "❌":
             await ctx.message.delete()
             with open("deleted_text.txt", "w", encoding="utf8") as file:
