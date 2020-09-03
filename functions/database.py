@@ -75,15 +75,6 @@ class PgSQLConnection(object):
             self.database = config[7]
             file.close()
 
-    def _show_tables(self, user):
-        try:
-            user.execute("SELECT * FROM info")
-        except Exception as error:
-            self.logger.error(error)
-            return True
-
-        return False
-
     def connect(self):
         try:
             conn = psycopg2.connect(host=self.host,

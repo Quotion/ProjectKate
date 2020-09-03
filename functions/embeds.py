@@ -2,7 +2,7 @@ import discord
 import datetime
 import io
 import time
-import json
+import random
 
 
 async def member_join(member):
@@ -157,7 +157,9 @@ async def purge(ctx, amount):
 
 async def roulette(ctx, win, thing):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
-    embed = discord.Embed(colour=discord.Colour.from_rgb(65, 115, 0))
+    embed = discord.Embed(colour=discord.Colour.from_rgb(random.randint(0, 256),
+                                                         random.randint(0, 256),
+                                                         random.randint(0, 256)))
     embed.set_author(name=f"Сегодня ваш выигрыш составляет {win} {thing} ")
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
@@ -183,11 +185,24 @@ async def invest(ctx, win, lose, sum, message):
     return embed
 
 
-async def description(author, content):
+async def description(title, content):
     embed = discord.Embed(
         colour=discord.Colour.purple()
     )
-    embed.description = content.format(author)
+    embed.set_author(name=title)
+    embed.description = content
+    return embed
+
+
+async def promocode(title, content, create_admin):
+    embed = discord.Embed(
+        colour=discord.Colour.from_rgb(random.randint(0, 256),
+                                       random.randint(0, 256),
+                                       random.randint(0, 256))
+    )
+    embed.set_author(name=title)
+    embed.description = content
+    embed.set_footer(text="Создано Администрацией Sunrise Project" if create_admin else "Создано автоматически")
     return embed
 
 
@@ -379,7 +394,8 @@ async def share(ctx, info):
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
 
-async def poll(ctx, quest, all_time, answers):
+
+async def poll(ctx, quest, answers):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
 
     simbols = [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":ten:"]
@@ -393,6 +409,30 @@ async def poll(ctx, quest, all_time, answers):
     embed.description = '\n'.join([thing for thing in things])
     embed.set_footer(text=f"Время создания: {now.strftime('%H:%M %d.%m.%Y')} | Сделал: {ctx.author.nick}")
     return embed
+
+
+async def poll_time(ctx, quest, time, answers, emoji):
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    time_end = datetime.datetime.now(datetime.timezone(datetime.timedelta(minutes=time + 180)))
+
+    simbols = [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":ten:"]
+    things = list()
+
+    for answer, i in zip(answers, range(0, 9)):
+        things.append(f"{simbols[i]} - {answer[0].title() + answer[1::]}")
+
+    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+    embed.set_author(name=quest)
+    for answer in answers:
+        embed.add_field(name=answer[0].title() + answer[1::],
+                        value=emoji,
+                        inline=False)
+    embed.description = '\n'.join([thing for thing in things])
+    embed.set_footer(text=f"Время создания: {now.strftime('%H:%M %d.%m.%Y')} | "
+                          f"Сделал: {ctx.author.name} | "
+                          f"Время до окончания {time_end.strftime('%H:%M %d.%m.%Y')}")
+    return embed
+
 
 async def all_members(ctx, all_data):
     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))

@@ -23,7 +23,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
     def info_exist(self):
         async def predicate(ctx):
             conn, user = self.pgsql.connect()
-            user.execute("SELECT info FROM info WHERE guild_id = %s", [ctx.guild.id])
+            user.execute("SELECT promocode FROM promocode WHERE guild_id = %s", [ctx.guild.id])
             info = user.fetchone()[0]
 
             self.pgsql.close_conn(conn, user)
@@ -41,7 +41,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
 
         conn, user = self.pgsql.connect()
         guild_id = ctx.guild.id
-        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
+        user.execute("SELECT promocode FROM promocode WHERE guild_id = %s", [guild_id])
         info = user.fetchone()[0]
 
         if ctx.message.channel_mentions and len(ctx.message.channel_mentions) == 1:
@@ -49,7 +49,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             await ctx.channel.send(channel_saved.format(ctx.author.mention, ctx.message.channel_mentions[0],
                                                         'основного общения'))
             try:
-                user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
+                user.execute("UPDATE promocode SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
                 conn.commit()
                 self.logger.info("Channel for main communication was saved.")
             except Exception as error:
@@ -71,7 +71,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
 
         conn, user = self.pgsql.connect()
         guild_id = ctx.guild.id
-        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
+        user.execute("SELECT promocode FROM promocode WHERE guild_id = %s", [guild_id])
         info = user.fetchone()[0]
 
         if ctx.message.channel_mentions and len(ctx.message.channel_mentions) == 1:
@@ -79,7 +79,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             await ctx.channel.send(channel_saved.format(ctx.author.mention, ctx.message.channel_mentions[0],
                                                         'новостей'))
             try:
-                user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
+                user.execute("UPDATE promocode SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
                 conn.commit()
                 self.logger.info("Channel for news was saved.")
             except Exception as error:
@@ -102,7 +102,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
 
         conn, user = self.pgsql.connect()
         guild_id = ctx.guild.id
-        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
+        user.execute("SELECT promocode FROM promocode WHERE guild_id = %s", [guild_id])
         info = user.fetchone()[0]
 
         if ctx.message.channel_mentions and len(ctx.message.channel_mentions) == 1:
@@ -110,7 +110,7 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
             await ctx.channel.send(channel_saved.format(ctx.author.mention, ctx.message.channel_mentions[0],
                                                         'логгирования'))
             try:
-                user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
+                user.execute("UPDATE promocode SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
                 conn.commit()
                 self.logger.info("Channel for logging was saved.")
             except Exception as error:
@@ -133,11 +133,11 @@ class AddChannels(commands.Cog, name='Добавление каналов'):
     def _correct_info(self, guild_id):
 
         conn, user = self.pgsql.connect()
-        user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
+        user.execute("SELECT promocode FROM promocode WHERE guild_id = {}".format(guild_id))
         info = user.fetchall()
         if not info:
             information = {'main': 0, 'news': 0, 'logging': 0}
-            user.execute("INSERT INTO info VALUES (%s, %s)", (guild_id, json.dumps(information),))
+            user.execute("INSERT INTO promocode VALUES (%s, %s)", (guild_id, json.dumps(information),))
             conn.commit()
 
         self.logger.info('The error has been fixed. Guild ID {} was added in JSON table.'.format(guild_id))

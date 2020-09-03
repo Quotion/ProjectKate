@@ -135,7 +135,7 @@ class Invests(commands.Cog, name="Инвестиции"):
         conn, user, bank = None, None, None
         try:
             conn, user = self.pgsql.connect()
-            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            user.execute("SELECT bank_info FROM promocode WHERE guild_id = {}".format(ctx.guild.id))
             bank = user.fetchone()[0]
         except Exception as error:
             self.logger.error(error)
@@ -146,7 +146,7 @@ class Invests(commands.Cog, name="Инвестиции"):
 
         try:
             conn, user = self.pgsql.connect()
-            user.execute('UPDATE info SET bank_info = %s WHERE guild_id = %s', (json.dumps(bank), ctx.guild.id))
+            user.execute('UPDATE promocode SET bank_info = %s WHERE guild_id = %s', (json.dumps(bank), ctx.guild.id))
             conn.commit()
 
             await ctx.send(embed=await description(name, save_name_bank))
@@ -162,7 +162,7 @@ class Invests(commands.Cog, name="Инвестиции"):
         conn, user, bank = None, None, None
         try:
             conn, user = self.pgsql.connect()
-            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            user.execute("SELECT bank_info FROM promocode WHERE guild_id = {}".format(ctx.guild.id))
             bank = user.fetchone()[0]
         except Exception as error:
             self.logger.error(error)
@@ -173,7 +173,7 @@ class Invests(commands.Cog, name="Инвестиции"):
 
         try:
             conn, user = self.pgsql.connect()
-            user.execute('UPDATE info SET bank_info = %s WHERE guild_id = %s', (json.dumps(bank), ctx.guild.id))
+            user.execute('UPDATE promocode SET bank_info = %s WHERE guild_id = %s', (json.dumps(bank), ctx.guild.id))
             conn.commit()
         except Exception as error:
             self.logger.error(error)
@@ -223,7 +223,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             conn, user = self.pgsql.connect()
             user.execute("SELECT * FROM bank WHERE discordID = {}".format(ctx.author.id))
             info = user.fetchall()[0]
-            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(info[1]))
+            user.execute("SELECT bank_info FROM promocode WHERE guild_id = {}".format(info[1]))
             bank = user.fetchone()[0]
         except TypeError as error:
             await ctx.send(account_not_exist.format(ctx.author.mention))
@@ -273,7 +273,7 @@ class Invests(commands.Cog, name="Инвестиции"):
 
         try:
             conn, user = self.pgsql.connect()
-            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            user.execute("SELECT bank_info FROM promocode WHERE guild_id = {}".format(ctx.guild.id))
             bank = user.fetchone()[0]
 
             course = self.__check_course__()
@@ -298,7 +298,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             conn, user = self.pgsql.connect()
             user.execute("SELECT money FROM users WHERE \"discordID\" = {}".format(ctx.author.id))
             money = user.fetchone()[0]
-            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            user.execute("SELECT bank_info FROM promocode WHERE guild_id = {}".format(ctx.guild.id))
             info = user.fetchone()[0]
             print(info)
 
@@ -348,7 +348,7 @@ class Invests(commands.Cog, name="Инвестиции"):
             user.execute("SELECT * FROM bank WHERE discordID = {}".format(int(bill_id)))
             user.fetchall()[0]
 
-            user.execute("SELECT bank_info FROM info WHERE guild_id = {}".format(ctx.guild.id))
+            user.execute("SELECT bank_info FROM promocode WHERE guild_id = {}".format(ctx.guild.id))
             info = user.fetchone()
 
             user.execute("SELECT amount FROM bank WHERE discordID = {}".format(ctx.author.id))

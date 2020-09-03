@@ -1,5 +1,6 @@
 import json
 from pprint import pprint
+import requests
 import discord
 import functions
 import datetime
@@ -7,7 +8,10 @@ import logging
 from functions.database import MySQLConnection, PgSQLConnection
 import steam.game_servers
 from discord.ext import commands, tasks
-from language.treatment_ru import *
+
+
+class LoadDataStatusFailed(commands.CheckFailure):
+    pass
 
 
 class Status(commands.Cog, name="Статус серверов"):
@@ -24,27 +28,8 @@ class Status(commands.Cog, name="Статус серверов"):
 
         self.update.start()
 
-    async def _send(self, ctx):
-        conn, user = self.pgsql.connect()
-        guild_id = ctx.guild.id
-        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
-        info = user.fetchone()[0]
-
-        for key in info['status'].keys():
-            if key != "channel" and not info['status'][key]['message_id']:
-                channel = self.client.get_channel(info['status']['channel'])
-                message = await channel.send("Please, await update data of your server status.")
-                info['status'][key]['message_id'] = message.id
-                try:
-                    user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
-                    conn.commit()
-                except Exception as error:
-                    await ctx.channel.send(something_went_wrong)
-                    self.logger.error(error)
-
-        self.pgsql.close_conn(conn, user)
-
-    def __get_info(self, server_address):
+    @staticmethod
+    def __get_info(server_address):
         try:
             data = steam.game_servers.a2s_info(server_address, timeout=5)
             players = steam.game_servers.a2s_players(server_address, timeout=5)
@@ -53,73 +38,43 @@ class Status(commands.Cog, name="Статус серверов"):
             map_server = data['map']
             player_count = data['players']
             max_players = data['max_players']
-        except Exception as error:
+        except Exception:
             return 0, 0, 0, 0, 0, 0, False
         else:
             return ping, name, player_count, players, max_players, map_server, True
 
-    async def __get_all_servers_ip(self, servers):
+    async def __get_all_servers_ip(self, status):
         servers_info = list()
 
-        for server in servers:
-            server = dict(server[0])
-            channel, message = None, None
+        channel = discord.utils.get(self.client.get_all_channels(), name='статус-серверов')
+        if not channel:
+            return None
 
+        for value in status:
             try:
-                channel = self.client.get_channel(server['status']['channel'])
-            except KeyError:
-                continue
-            else:
-                if not channel:
-                    continue
+                message = await channel.fetch_message(value[1])
+            except discord.NotFound:
+                message = channel.id
+            except discord.HTTPException:
+                message = await channel.fetch_message(value[1])
 
-            for value in server['status'].keys():
-                if value == "channel":
-                    continue
+            collection = f"https://steamcommunity.com/sharedfiles/filedetails/?id={value[2]}"
 
-                try:
-                    message = await channel.fetch_message(server['status'][value]['message_id'])
-                except discord.NotFound:
-                    message = channel.id
-                except discord.HTTPException:
-                    message = await channel.fetch_message(server['status'][value]['message_id'])
+            ip = value[0].split(":")
 
-                value = value.split(":")
-                servers_info.append(((value[0], int(value[1])), message))
+            servers_info.append((ip[0], int(ip[1]), collection, message))
 
         return servers_info
 
-    def __delete_ip(self, server_info, conn, user):
-        data_of_server = None
-
-        try:
-            channel = self.client.get_channel(server_info[1])
-
-            user.execute(f"SELECT info FROM info WHERE guild_id = {channel.guild.id}")
-            data_of_server = user.fetchone()[0]
-        except Exception as error:
-            self.logger.error(f"Info about guild where need deleted ip get unsuccesseful. Error:\n{error}")
-            return
-
-        ip = server_info[0][0] + ":" + str(server_info[0][1])
-
-        del data_of_server['status'][ip]
-        user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(data_of_server), channel.guild.id))
-        conn.commit()
-        self.logger.info("{} was deleted from status".format(ip))
-
     @tasks.loop(seconds=60.0)
     async def update(self):
-        data_of_servers, message, database, gamer = None, None, None, None
-
         try:
             conn, user = self.pgsql.connect()
 
-            user.execute("SELECT info FROM info")
+            user.execute("SELECT * FROM status")
             data_of_servers = user.fetchall()
-        except Exception as error:
-            self.logger.error(f"Info about all servers get unsuccesseful. Error:\n{error}")
-            return
+        except Exception:
+            raise LoadDataStatusFailed("Данные не могут быть прогруженны с сервера.")
         finally:
             self.pgsql.close_conn(conn, user)
 
@@ -129,15 +84,22 @@ class Status(commands.Cog, name="Статус серверов"):
 
             servers_info = await self.__get_all_servers_ip(data_of_servers)
 
+            if not servers_info:
+                return
+
             for server_info in servers_info:
-                if not isinstance(server_info[1], discord.Message):
-                    self.__delete_ip(server_info, conn, user)
+
+                server_address = ((server_info[0]), server_info[1])
+                collection = server_info[2]
+                message = server_info[3]
+
+                if not isinstance(message, discord.Message):
+                    user.execute("DELETE FROM status WHERE ip = %s", [f"{server_info[0]}:{servers_info[1]}"])
+                    conn.commit()
                     continue
 
-                server_address = server_info[0]
-                message = server_info[1]
-
-                ping, name, player_count, players, max_players, map_server, check_status = self.__get_info(server_address)
+                ping, name, player_count, players, max_players, map_server, check_status = \
+                    self.__get_info(server_address)
 
                 if check_status:
                     i = 0
@@ -181,7 +143,9 @@ class Status(commands.Cog, name="Статус серверов"):
                         elif player["name"] != '' and not steamid != '':
                             ply[i] = str(i + 1) + '. **' + player["name"] + '** `ДАННЫЕ ОТСУТСТВУЮТ`'
                             i += 1
-                    title = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+                    title = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63),
+                                          url=collection,
+                                          title=f'Коллекция сервера')
                     title.set_author(name=name,
                                      icon_url=message.guild.icon_url)
                     title.add_field(name='Статус:',
@@ -200,7 +164,6 @@ class Status(commands.Cog, name="Статус серверов"):
                     title.add_field(name='Карта:',
                                     value=f'{map_server}',
                                     inline=False)
-
                     title.add_field(name='IP-ссылка на сервер:',
                                     value=f'steam://connect/{server_address[0]}:{server_address[1]}',
                                     inline=False)
@@ -226,138 +189,131 @@ class Status(commands.Cog, name="Статус серверов"):
     async def ready(self):
         await self.client.wait_until_ready()
 
-    @commands.command(name='статус', help="<префикс>статус <хайлайт канала>")
+    # @commands.command(
+    #     name='статус',
+    #     help="<префикс>статус #статус-серверов",
+    #     brief="<префикс>статус <хайлайт канала>")
+    # @commands.cooldown(1, 5, commands.BucketType.user)
+    # @commands.guild_only()
+    # @commands.has_permissions(administrator=True)
+    # async def main_channel(self, ctx, channel: discord.TextChannel):
+    #     conn, user = self.pgsql.connect()
+    #     guild_id = channel.guild.id
+    #     user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
+    #     info = user.fetchone()[0]
+    #
+    #     if 'status' in info.keys():
+    #         await ctx.channel.send(embed=await functions.embeds.
+    #                                description("Статус уже существует.", "Канал, куда отсылается вся инофрмация по "
+    #                                                                      "статусам серверов уже есть."))
+    #         return
+    #
+    #     info['status'] = {}
+    #     info['status']['channel'] = channel.id
+    #     await ctx.channel.send(embed=await functions.embeds.
+    #                            description("Статус уже существует.", "Канал, куда отсылается вся инофрмация по "
+    #                                                                  "статусам серверов уже есть."))
+    #
+    #     user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
+    #     conn.commit()
+    #     self.logger.info("Channel for logging was saved.")
+    #
+    #     await ctx.channel.send(embed=await functions.embeds.description("ВНИМАНИЕ", "Пожалуйста убедитесь, "
+    #                                                                                 "что в этот канал никто не "
+    #                                                                                 "сможет писать, а также "
+    #                                                                                 "ставить реакции! \nВ "
+    #                                                                                 "противном случае, обновление "
+    #                                                                                 "статуса может работать "
+    #                                                                                 "неверно."))
+    #
+    #     self.pgsql.close_conn(conn, user)
+
+    @commands.command(
+        help="<префикс>ip 192.168.1.1:27015 https://steamcommunity.com/sharedfiles/filedetails/?id=...",
+        brief="<префикс>ip <ip:port> <коллекция workshop>")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
-    async def main_channel(self, ctx):
-        conn, user = self.pgsql.connect()
-        guild_id = ctx.guild.id
-        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
-        info = user.fetchone()[0]
+    async def ip(self, ctx, ip: str, collection: str):
+        address = ip.split(":")
 
-        if 'status' in info.keys():
-            await ctx.channel.send(embed=await functions.embeds.
-                                   description(ctx.author.mention, status_already_exist))
+        request = requests.head(collection)
+        if request.status_code != 200:
+            await ctx.channel.send(embed=await functions.embeds.description("Ссылка коллекции недействительна",
+                                                                            "URL коллекции не доступна для просмотра. "
+                                                                            "Если это программная ошибка, то "
+                                                                            "пожалуйста попробуйте позже."))
+
+        conn, user = self.pgsql.connect()
+
+        user.execute("SELECT * FROM status")
+        status = user.fetchall()
+
+        if not address[1].isdigit():
+            await ctx.channel.send(embed=await functions.embeds.description("Порт указан с ошибкой",
+                                                                            "Порт {} не является числом, пожалуйста "
+                                                                            "перепроверте его.".format(address[1])))
             return
 
-        elif ctx.message.channel_mentions and len(ctx.message.channel_mentions) == 1:
-            info['status'] = {}
-            info['status']['channel'] = ctx.message.channel_mentions[0].id
-            await ctx.channel.send(channel_saved.format(ctx.author.mention, ctx.message.channel_mentions[0],
-                                                        'статуса сервера(-ов)'))
-            try:
-                user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
-                conn.commit()
-                self.logger.info("Channel for logging was saved.")
-            except Exception as error:
-                await ctx.channel.send(something_went_wrong)
-                self.logger.error(error)
-            else:
-                await ctx.channel.send(embed=await functions.embeds.description(ctx.author.mention, please_confirm))
+        if ip not in status:
+            channel = discord.utils.get(self.client.get_all_channels(), name='статус-серверов')
+            if not channel:
+                await ctx.channel.send(embed=await functions.embeds.description("Канал СТАТУС-СЕРВЕРОВ не создан",
+                                                                                "Чтобы статус серверов заработал нужен"
+                                                                                "канал с названием **статус-серверов**"
+                                                                                " его, иначе ничего работать не будет"))
+                return
 
-        elif ctx.message.channel_mentions:
-            await ctx.channel.send(so_many_channels.format(ctx.author.mention))
+            id = collection.split("=")
 
-        else:
-            await ctx.channel.send(not_enough_channels.format(ctx.author.mention, self.client.command_prefix))
-            self.logger.info("User entered incorrect data about guild channel: it's empty.")
+            message = await channel.send(embed=await functions.embeds.description("Ожидайте изменение статуса",
+                                                                                  "Ожидайте, пока пройдет "
+                                                                                  "загружаются данные."))
 
-        self.pgsql.close_conn(conn, user)
-
-    @commands.command(help="<префикс>ip <ip:port>")
-    @commands.cooldown(1, 5, commands.BucketType.user)
-    @commands.guild_only()
-    @commands.has_permissions(administrator=True)
-    async def ip(self, ctx):
-        msg = ctx.message.content.split()
-        address = msg[1].split(":")
-
-        conn, user = self.pgsql.connect()
-        guild_id = ctx.guild.id
-        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
-        info = user.fetchone()[0]
-
-        if address[1].isdigit() and len(msg) < 3:
-            server_address = (address[0], int(address[1]))
-            try:
-                steam.game_servers.a2s_info(server_address, timeout=5)
-            except Exception as error:
-                self.logger.error(error)
-                await ctx.channel.send(server_not_valid.format(ctx.author.mention, msg[1]))
-            else:
-                if msg[1] not in info['status'].keys():
-                    info['status'][msg[1]] = {}
-                    info['status'][msg[1]]['message_id'] = None
-                    info['status'][msg[1]]['time'] = int(datetime.datetime.today().timestamp()) - 60
-                    try:
-                        user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
-                        conn.commit()
-                        self.logger.info("IP status saved for guild")
-                    except Exception as error:
-                        await ctx.channel.send(something_went_wrong)
-                        self.logger.error(error)
-                    else:
-                        await self._send(ctx)
-                        await ctx.channel.send("{} successes 👍".format(ctx.author.mention))
-                else:
-                    await ctx.channel.send(ip_exist.format(ctx.author.mention))
-        elif len(msg) == 3:
-            if msg[2] == "1":
-                if msg[1] not in info['status'].keys():
-                    info['status'][msg[1]] = {}
-                    info['status'][msg[1]]['message_id'] = None
-                    info['status'][msg[1]]['time'] = int(datetime.datetime.today().timestamp()) - 60
-                    try:
-                        user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
-                        conn.commit()
-                        self.logger.info("Channel for logging was saved.")
-                    except Exception as error:
-                        await ctx.channel.send(something_went_wrong)
-                        self.logger.error(error)
-                    else:
-                        await self._send(ctx)
-                        await ctx.channel.send("{} successes 👍".format(ctx.author.mention))
-                else:
-                    await ctx.channel.send(ip_exist.format(ctx.author.mention))
-        else:
-            await ctx.channel.send(something_went_wrong_ip.format(ctx.author.mention, self.client.command_prefix))
-
-        self.pgsql.close_conn(conn, user)
-
-    @commands.command(name="удалить_статус", help="<префикс>удалить_статус")
-    @commands.cooldown(1, 5, commands.BucketType.user)
-    @commands.guild_only()
-    @commands.has_permissions(administrator=True)
-    async def delete_status(self, ctx):
-        conn, user = self.pgsql.connect()
-        guild_id = ctx.guild.id
-        user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
-        info = user.fetchone()[0]
-
-        if 'status' not in info.keys():
-            await ctx.channel.send(nothing_to_delete.format(ctx.author.mention))
-            return
-
-        channel = self.client.get_channel(info['status']['channel'])
-
-        for key in info['status'].keys():
-            if key != 'channel':
-                try:
-                    message = await channel.fetch_message(info['status'][key]['message_id'])
-                except Exception as error:
-                    self.logger.error(error)
-                else:
-                    await message.delete()
-        del info['status']
-        try:
-            user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
+            user.execute(f"INSERT INTO status VALUES (%s, %s, %s)", (str(ip), message.id, int(id[1])))
             conn.commit()
-            self.logger.info("Channel for logging was saved.")
-        except Exception as error:
-            await ctx.channel.send(something_went_wrong)
-            self.logger.error(error)
-        else:
-            await ctx.channel.send("{} successes 👍".format(ctx.author.mention))
+            await ctx.channel.send(embed=await functions.embeds.description("IP успешно добавлен",
+                                                                            "Адресс: `{}` успешно выведен в "
+                                                                            "канал.".format(ip)))
 
         self.pgsql.close_conn(conn, user)
+
+    # @commands.command(
+    #     name="удалить_статус",
+    #     help="<префикс>удалить_статус")
+    # @commands.cooldown(1, 5, commands.BucketType.user)
+    # @commands.guild_only()
+    # @commands.has_permissions(administrator=True)
+    # async def delete_status(self, ctx):
+    #     conn, user = self.pgsql.connect()
+    #     guild_id = ctx.guild.id
+    #     user.execute("SELECT info FROM info WHERE guild_id = %s", [guild_id])
+    #     info = user.fetchone()[0]
+    #
+    #     if 'status' not in info.keys():
+    #         await ctx.channel.send(embed=await functions.embeds.description("Статуса не существует.",
+    #                                                                         "Либо вы его уже удалили, либо никогда не "
+    #                                                                         "создавали."))
+    #         return
+    #
+    #     channel = self.client.get_channel(info['status']['channel'])
+    #
+    #     for key in info['status'].keys():
+    #         if key != 'channel':
+    #             try:
+    #                 message = await channel.fetch_message(info['status'][key]['message_id'])
+    #             except Exception as error:
+    #                 self.logger.error(error)
+    #             else:
+    #                 await message.delete()
+    #     del info['status']
+    #
+    #     user.execute("UPDATE info SET info = %s WHERE guild_id = %s", (json.dumps(info), guild_id))
+    #     conn.commit()
+    #     self.logger.info("Channel for logging was saved.")
+    #
+    #     await ctx.channel.send(embed=await functions.embeds.description("Статус успешно удален.",
+    #                                                                     "Канал, куда указывалась информация по "
+    #                                                                     "серверам, успешно удален."))
+    #
+    #     self.pgsql.close_conn(conn, user)

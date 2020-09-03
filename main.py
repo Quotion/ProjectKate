@@ -11,6 +11,7 @@ from modueles.invests import Invests
 from modueles.rprequest import RPrequest
 from modueles.orders import Orders
 import functions.embeds
+import datetime
 import discord
 import logging
 import json
@@ -34,11 +35,11 @@ class Katherine(discord.Client):
         self.on_ready()
         self.events()
 
-        self.client.add_cog(AddChannels(client))
+        # self.client.add_cog(AddChannels(client))
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
-        self.client.add_cog(Invests(client))
+        # self.client.add_cog(Invests(client))
         self.client.add_cog(RPrequest(client))
         self.client.add_cog(Orders(client))
 
@@ -56,44 +57,31 @@ class Katherine(discord.Client):
     def events(self):
         @self.client.event
         async def on_guild_join(guild):
-            conn, user = self.pgsql.connect()
-            user.execute("SELECT info FROM info WHERE guild_id = %s", [guild.id])
-            info = user.fetchone()
-            if not info or info == "null":
-                information = {'main': 0, 'news': 0, 'logging': 0}
-                bank = {'name': f'"{guild.name}" банк', 'char_of_currency': 'ВС'}
-                user.execute("INSERT INTO info (bank_info, guild_id, info, promocode) VALUES (%s, %s, %s, %s)",
-                            (json.dumps(bank), guild.id, json.dumps(information), json.dumps({"amount":0, "code":0})))
-                conn.commit()
-
             logger.info('Someone added {} to guild "{}"'.format(self.client.user.name, guild.name))
-
-            self.pgsql.close_conn(conn, user)
-            channel = guild.system_channel
-            await channel.send(embed=await functions.embeds.description(guild.name, thanks))
-            await channel.send(embed=await functions.embeds.description(self.client.command_prefix[0], channels))
 
         @self.client.event
         async def on_member_join(member):
-            guild_id = member.guild.id
             conn, user = self.pgsql.connect()
+            roles = None
+            roles_higher = list()
 
-            user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
-            info = user.fetchone()[0]
+            try:
+                user.execute("SELECT * FROM users WHERE \"discordID\" = %s", [member.id])
+                var = user.fetchone()[0]
+            except TypeError:
+                now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+
+                user.execute(
+                    'INSERT INTO users VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                    (member.id, 0, 0, 0, 1, now.day - 1, None, json.dumps({str(member.guild.id): {}})))
+                conn.commit()
 
             user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
-            roles = None
+
             try:
                 roles = user.fetchone()[0]
-            except Exception:
+            except TypeError:
                 pass
-
-            if info['logging']:
-                channel = self.client.get_channel(info['logging'])
-
-                await channel.send(embed=await functions.embeds.member_join(member))
-
-            self.pgsql.close_conn(conn, user)
 
             try:
                 roles[str(member.guild.id)]
@@ -103,12 +91,40 @@ class Katherine(discord.Client):
                 roles[str(member.guild.id)] = {}
                 return
 
-            list_roles = list()
+            for id_role in roles[str(member.guild.id)]:
+                role = member.guild.get_role(id_role)
 
-            for role in roles[str(member.guild.id)]:
-                list_roles.append(member.guild.get_role(role))
+                if role.name == "@everyone":
+                    continue
 
-            await member.edit(roles=list_roles)
+                try:
+                    await member.add_roles(role)
+                except discord.Forbidden:
+                    roles_higher.append(role)
+
+            self.pgsql.close_conn(conn, user)
+
+            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            if not channel:
+                pass
+            else:
+                await channel.send(embed=await functions.embeds.member_join(member))
+
+                if len(roles_higher) == 0:
+                    return
+
+                embed = discord.Embed(colour=discord.Colour.red())
+                if len(roles_higher) == 1:
+                    embed.set_author(name="Недостаточно прав. Выдаваемая роль стоит выше, чем роль бота.")
+                    embed.description = "Роль `{}` не может быть выдана `{}` " \
+                                        "из-за недостатка прав.".format(roles_higher[0].name, member.name)
+                else:
+                    embed.set_author(name="Недостаточно прав. Выдаваемые роли стоят выше, чем роль бота.")
+                    embed.description = "Роли `{}` не могут быть выданы `{}` " \
+                                        "из-за недостатка прав.".format(', '.join(role.name for role in roles_higher),
+                                                                        member.name)
+
+                await channel.send(embed=embed)
 
         @self.client.event
         async def on_member_remove(member):
@@ -116,15 +132,12 @@ class Katherine(discord.Client):
                 return
 
             conn, user = self.pgsql.connect()
-
             roles = None
-
-            guild_id = member.guild.id
 
             try:
                 user.execute("SELECT roles FROM users WHERE \"discordID\" = %s", [member.id])
                 roles = user.fetchone()[0]
-                roles[str(member.guild.id)]
+                var = roles[str(member.guild.id)]
             except Exception:
                 if not roles:
                     roles = {}
@@ -135,14 +148,11 @@ class Katherine(discord.Client):
             user.execute("UPDATE users SET roles = %s WHERE \"discordID\" = %s", (json.dumps(roles), member.id))
             conn.commit()
 
-            user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
-            info = user.fetchone()[0]
-
-            if info['logging'] != 0:
-                channel = self.client.get_channel(info['logging'])
-
+            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            if not channel:
+                pass
+            else:
                 await channel.send(embed=await functions.embeds.member_exit(member))
-
                 logger.info("Member remove from guild ({})".format(member.guild.name))
 
             self.pgsql.close_conn(conn, user)
@@ -154,15 +164,11 @@ class Katherine(discord.Client):
 
             conn, user = self.pgsql.connect()
 
-            guild_id, plot = msg_before.guild.id, None
-
-            user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
-            info = user.fetchone()[0]
-
-            if info['logging'] != 0:
-                channel = self.client.get_channel(info['logging'])
+            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            if not channel:
+                pass
+            else:
                 embed = await functions.embeds.message_edit(msg_before, msg_after)
-                msg_changes, plot = None, None
 
                 try:
                     plot = io.open("changelog.txt", "rb")
@@ -188,13 +194,11 @@ class Katherine(discord.Client):
 
             guild_id, check, msg_delete = message.guild.id, None, None
 
-            user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
-            info = user.fetchone()[0]
-
-            if info['logging'] != 0:
+            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            if not channel:
+                pass
+            else:
                 if message.content:
-                    channel = self.client.get_channel(info['logging'])
-
                     if len(message.content) > 50:
                         content = message.content[0:40] + "..."
                         check = True
@@ -207,7 +211,8 @@ class Katherine(discord.Client):
                             file = io.open("changelogdeleted.txt", "rb")
                             msg_delete = discord.File(file, filename="Message_deleted.txt")
 
-                            await channel.send(embed=await functions.embeds.delete_message(message, content), file=msg_delete)
+                            await channel.send(embed=await functions.embeds.delete_message(message, content),
+                                               file=msg_delete)
 
                             file.close()
                             msg_delete.close()
@@ -216,7 +221,6 @@ class Katherine(discord.Client):
                             logging.error(error)
                     else:
                         await channel.send(embed=await functions.embeds.delete_message(message, message.content))
-
 
             self.pgsql.close_conn(conn, user)
 
@@ -229,8 +233,6 @@ class Katherine(discord.Client):
 
             conn, user = self.pgsql.connect()
             guild_id = payload.guild_id
-            user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
-            info = user.fetchone()[0]
 
             guild = self.client.get_guild(guild_id)
             try:
@@ -239,40 +241,16 @@ class Katherine(discord.Client):
             except AttributeError as error:
                 logger.error(error)
 
-            if info['logging'] != 0:
-                channel_log = self.client.get_channel(info['logging'])
+            channel_log = discord.utils.get(self.client.get_all_channels(), name='око')
+            if not channel_log:
+                pass
+            else:
                 channel = self.client.get_channel(payload.channel_id)
-
                 await channel_log.send(embed=await functions.embeds.raw_delete_message(user_info, channel,
                                                                                        payload.message_id))
                 logger.info("Message was raw delete.")
 
             self.pgsql.close_conn(conn, user)
-
-        # @self.client.event
-        # async def on_raw_message_edit(payload):
-        #     channel = self.client.get_channel(int(payload.data['channel_id']))
-        #     message = await channel.fetch_message(payload.message_id)
-        #
-        #     conn, user = self.pgsql.connect()
-        #     guild_id = message.guild.id
-        #     user.execute("SELECT info FROM info WHERE guild_id = {}".format(guild_id))
-        #     info = user.fetchone()[0]
-        #
-        #     if 'status' in info.keys():
-        #         if channel.id == info['status']['channel']:
-        #             return
-        #
-        #     if payload.cached_message:
-        #         logger.info("Message not exist.")
-        #         return
-        #
-        #     if info['logging']:
-        #         channel_log = self.client.get_channel(info['logging'])
-        #         await channel_log.send(embed=await functions.embeds.raw_edit_message(message))
-        #         logger.info("Message was raw edit.")
-        #
-        #     self.pgsql.close_conn(conn, user)
 
         @self.client.event
         async def on_message(message):
@@ -294,8 +272,6 @@ class Katherine(discord.Client):
 
             if message.author.id == self.client.user.id:
                 return
-            elif ("коллекция" in message.content.lower() or "коллекцию" in message.content.lower()) and message.guild.id == 580768441279971338:
-                await message.channel.send("https://steamcommunity.com/sharedfiles/filedetails/?id=783342247")
             else:
                 await self.client.process_commands(message)
 
