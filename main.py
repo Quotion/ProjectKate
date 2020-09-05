@@ -2,9 +2,7 @@
 
 from functions.database import PgSQLConnection
 from discord.ext.commands import Bot
-from language.treatment_ru import *
 from modueles.status import Status
-from modueles.addchannels import AddChannels
 from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
 from modueles.invests import Invests

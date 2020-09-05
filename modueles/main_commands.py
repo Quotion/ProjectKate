@@ -19,7 +19,6 @@ from io import BytesIO
 import functions.database
 import functions.helper
 from functions.create_plot import create_figure
-from language.treatment_ru import *
 
 
 class MainCommands(commands.Cog, name="Основные команды"):
@@ -55,6 +54,28 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @tasks.loop(minutes=random.randint(420, 900))
     async def generate_promo(self):
         conn, user = self.pgsql.connect()
+
+        promo_event = ["Продам {} {}ок бесплатно.\nПромокод: `{}`",
+                       "Тут мне администраторы нашептали, что стоит вам дать кое-что интересное на {} {}ок\nПромокод: "
+                       "`{}`",
+
+                       "3 сентебря прошло, а ты все еще переварачиваешь календарь, получая {} {}ок?\nПромокод: `{}`",
+
+                       "А вы знали что на Sunrise есть бесплатное пиво? И мы не знали. "
+                       "В прочем, еще есть промокод на {} {}ок\nПромокод: `{}`",
+
+                       "Ало Галочка, ты сейчас умрешь. У меня есть промокод на {} {}ок\nПромокод: `{}`",
+
+                       "Назовите слово из 8 букв начинающееся на П.\nНеправильно - прогресс.\n"
+                       "Хотя и промокод сойдет...\n{} {}ок с промокодом `{}`",
+
+                       "У меня ушел жир весь жир! Я просто втирал какоу-то дичь в лицо. Вот рецепт: надо всего лишь... "
+                       "получить промокод на {} {}ок\nПромокод: `{}`",
+
+                       "Однажды, парень рассказал, что нашёл {} {}\nПлакала половина маршрутки, "
+                       "а этим парнем был Альберт Эйнштейн\nПромокод: `{}`",
+
+                       "А ты готов прыгнуть в пучину отчаиния за {} {}? И я нет, поэтому и не надо.\nПромокод: `{}`"]
 
         user.execute("SELECT * FROM promocode WHERE id = 1 AND create_admin = False")
         promocode = user.fetchall()
@@ -195,7 +216,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send(embed=await functions.embeds.description(f"Невозможно отправить Вам промокод.",
                                                                     "Пожалуйста провертье, что Вам могут писать люди, "
                                                                     "даже если они не добавили Вас в друзья."))
-            user.execute(f"DELETE FROM promocode WHERE code = {code} AND create_admin = True")
+            user.execute(f"DELETE * FROM promocode WHERE code = {code} AND create_admin = True")
             conn.commit()
 
         self.pgsql.close_conn(conn, user)
@@ -642,7 +663,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         await ctx.send(embed=await functions.embeds.description("Реверсивки успешно обменены.",
                                                                 f"Вы обменяли {revers} реверсивок на "
-                                                                f"{revers * 4} золотых реверсивок"))
+                                                                f"{int(revers / 4)} золотых реверсивок"))
 
         self.pgsql.close_conn(conn, user)
 
@@ -664,7 +685,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
             steamid = user.fetchone()[0]
         except IndexError as error:
             self.logger.error(error)
-            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, you_not_synchronized))
+            await ctx.channel.send(embed=await functions.embeds.description("Вы не синхронизированы",
+                                                                            "Чтобы просмотреть свою статистику вам "
+                                                                            "нужно для начала синхронизировать свой "
+                                                                            "аккаунт Garry's Mod и Discord с помощью"
+                                                                            "команды **{}синхр** <ссылка на Steam "
+                                                                            "аккаунт>"
+                                                                            .format(self.client.command_prefix[0])))
             return
 
         if steamid != "None" and steamid:
@@ -672,11 +699,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 gamer.execute("SELECT * FROM statistics WHERE steamid = %s", [steamid])
                 data = gamer.fetchall()[0]
             except IndexError:
-                await ctx.send(statistic_went_wrong.format(ctx.author.mention))
-            except Exception as error:
-                self.logger.error(error)
-                await ctx.send(something_went_wrong)
-                return
+                await ctx.send(embed=await functions.embeds.description("Статистика не может быть прогружена.",
+                                                                        "Похоже, что статистика Вашей игры на сервере, "
+                                                                        "либо не доступна, либо есть ещё несколько "
+                                                                        "причин."))
 
             labels, all_time = await create_figure(data)
 
@@ -976,94 +1002,34 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.command(name="ботбан", help="<префикс>ботбан <хайлайт роли>")
     @commands.has_permissions(administrator=True)
     @commands.cooldown(1, 30, commands.BucketType.user)
-    async def botban(self, ctx):
-        msg = ctx.message.content.split()
+    async def botban(self, ctx, role: discord.Role):
 
-        if len(msg) > 2:
-            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
-            return
+        conn, user = self.pgsql.connect()
 
-        try:
-            conn, user = self.pgsql.connect()
-            id = ctx.message.role_mentions[0].id
+        user.execute("INSERT INTO botban (id) VALUES({})".format(role.id))
+        conn.commit()
 
-            user.execute("INSERT INTO botban (id) VALUES({})".format(id))
-            conn.commit()
+        await ctx.send(embed=await functions.embeds.description("Роль успешно добавлена в игнорируемые ботом.",
+                                                                "Теперь участники с этой ролью будут игнорироваться "
+                                                                "ботом во всех каналах."))
 
-            await ctx.send(successfully_added_to_botban.format(ctx.author.mention))
-        except Exception as error:
-            self.logger.error(error)
-        finally:
-            self.pgsql.close_conn(conn, user)
+        self.pgsql.close_conn(conn, user)
 
     @commands.command(name="ботразбан", help="<префикс>ботбан <хайлайт роли>")
     @commands.has_permissions(administrator=True)
     @commands.cooldown(1, 30, commands.BucketType.user)
-    async def botunban(self, ctx):
-        msg = ctx.message.content.split()
+    async def botunban(self, ctx, role: discord.Role):
 
-        if len(msg) > 2:
-            await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
-            return
+        conn, user = self.pgsql.connect()
 
-        try:
-            conn, user = self.pgsql.connect()
-            id = ctx.message.role_mentions[0].id
+        user.execute("DELETE * FROM botban WHERE id = {}".format(id))
+        conn.commit()
 
-            user.execute("DELETE * FROM botban WHERE id = {}".format(id))
-            conn.commit()
+        await ctx.send(embed=await functions.embeds.description("Роль успешно удалена из игнорируемых ботом.",
+                                                                "Теперь участники с этой ролью НЕ будут игнорироваться "
+                                                                "ботом во всех каналах."))
 
-            await ctx.send(successfully_remove_to_botban.format(ctx.author.mention))
-        except Exception as error:
-            self.logger.error(error)
-        finally:
-            self.pgsql.close_conn(conn, user)
-
-    # @commands.command(name="запрет_заявки", help="<префикс>запрет_заявки <хайлайт роли>")
-    # @commands.has_permissions(administrator=True)
-    # @commands.cooldown(1, 30, commands.BucketType.user)
-    # async def ban_request(self, ctx):
-    #     msg = ctx.message.content.split()
-    #
-    #     if len(msg) > 2:
-    #         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
-    #         return
-    #
-    #     try:
-    #         conn, user = self.pgsql.connect()
-    #         id = ctx.message.role_mentions[0].id
-    #
-    #         user.execute("INSERT INTO botban (id) VALUES({})".format(id))
-    #         conn.commit()
-    #
-    #         await ctx.send(successfully_added_to_botban.format(ctx.author.mention))
-    #     except Exception as error:
-    #         self.logger.error(error)
-    #     finally:
-    #         self.pgsql.close_conn(conn, user)
-    #
-    # @commands.command(name="отмена_запрета", help="<префикс>отмена_запрета <хайлайт роли>")
-    # @commands.has_permissions(administrator=True)
-    # @commands.cooldown(1, 30, commands.BucketType.user)
-    # async def unban_request(self, ctx):
-    #     msg = ctx.message.content.split()
-    #
-    #     if len(msg) > 2:
-    #         await ctx.send(embed=await functions.embeds.description(ctx.author.mention, to_many_parametrs))
-    #         return
-    #
-    #     try:
-    #         conn, user = self.pgsql.connect()
-    #         id = ctx.message.role_mentions[0].id
-    #
-    #         user.execute("DELETE * FROM botban WHERE id = {}".format(id))
-    #         conn.commit()
-    #
-    #         await ctx.send(successfully_remove_to_botban.format(ctx.author.mention))
-    #     except Exception as error:
-    #         self.logger.error(error)
-    #     finally:
-    #         self.pgsql.close_conn(conn, user)
+        self.pgsql.close_conn(conn, user)
 
     @commands.command(name="сервер")
     async def server_info(self, ctx):
@@ -1106,7 +1072,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         if isinstance(error, commands.MissingPermissions):
             embed = discord.Embed(colour=discord.Colour.red())
             embed.set_author(name="Недостаточно прав.")
-            embed.description = missing_permission.format(ctx.author.mention)
+            embed.description = "У вас недостаточно прав для использования данной команды."
             await ctx.send(embed=embed)
         elif isinstance(error, commands.MissingRequiredArgument):
             embed = discord.Embed(colour=discord.Colour.dark_gold())
@@ -1125,7 +1091,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
         elif isinstance(error, commands.CommandNotFound):
             embed = discord.Embed(colour=discord.Colour.red())
             embed.set_author(name="Команда не найдена.")
-            embed.description = command_not_found.format(ctx.author.mention, ctx.message.content.split()[0])
+            embed.description = f"Комадна **{ctx.message.content.split()[0]}** не существует или вы ошиблись в ее " \
+                                f"написании."
             await ctx.send(embed=embed)
         elif isinstance(error, commands.CommandOnCooldown):
             embed = discord.Embed(colour=discord.Colour.red())
