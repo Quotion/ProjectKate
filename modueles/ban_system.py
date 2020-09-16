@@ -66,10 +66,10 @@ class Ban(commands.Cog, name="Система банов"):
                     await ctx.channel.send(
                         embed=await functions.embeds.description("Игрок ни разу не заходил на сервер",
                                                                  "Игрок с таким серверов ни разу не "
-                                                                 "заходил на ."))
+                                                                 "заходил на сервер."))
                     return None
                 else:
-                    return data_gamer[0]
+                    return data_gamer
 
         else:
             gamer.execute(f"SELECT * FROM users_steam WHERE steamid = '{client}'")
@@ -80,7 +80,7 @@ class Ban(commands.Cog, name="Система банов"):
                                                                                 "заходил на ."))
                 return None
             else:
-                return data_gamer[0]
+                return data_gamer
 
     @commands.command(
         name='бан',

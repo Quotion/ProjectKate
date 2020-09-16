@@ -72,10 +72,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
                        "У меня ушел жир весь жир! Я просто втирал какоу-то дичь в лицо. Вот рецепт: надо всего лишь... "
                        "получить промокод на {} {}ок\nПромокод: `{}`",
 
-                       "Однажды, парень рассказал, что нашёл {} {}\nПлакала половина маршрутки, "
+                       "Однажды, парень рассказал, что нашёл {} {}ок\nПлакала половина маршрутки, "
                        "а этим парнем был Альберт Эйнштейн\nПромокод: `{}`",
 
-                       "А ты готов прыгнуть в пучину отчаиния за {} {}? И я нет, поэтому и не надо.\nПромокод: `{}`"]
+                       "А ты готов прыгнуть в пучину отчаиния за {} {}ок? И я нет, поэтому и не надо.\nПромокод: `{}`"]
 
         user.execute("SELECT * FROM promocode WHERE id = 1 AND create_admin = False")
         promocode = user.fetchall()
@@ -104,7 +104,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         await channel.send(embed=await functions.embeds.promocode("Новый промокод!",
                                                                   comment.format(
                                                                       amount,
-                                                                      "реверсив" if thing == 0 else "зл. реверсив",
+                                                                      "реверсив" if thing == 1 else "зл. реверсив",
                                                                       code),
                                                                   promocode[4]))
 
@@ -125,13 +125,6 @@ class MainCommands(commands.Cog, name="Основные команды"):
         conn, user = self.pgsql.connect()
         user.execute("SELECT code FROM promocode WHERE id = 1 AND create_admin = False")
         code = user.fetchone()
-        user.execute("SELECT COUNT(*) FROM promocode")
-        count = user.fetchone()[0]
-
-        if count > 15:
-            await ctx.send(embed=await functions.embeds.description("Промокодов уже достаточно.",
-                                                                    "Больше 15 промокодов не может быть создано."))
-            return
 
         if not code:
             user.execute("INSERT INTO promocode (code, create_admin) VALUES (1, False)")
@@ -184,12 +177,20 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def create_promocode(self, ctx, amount: int, thing: int):
         conn, user = self.pgsql.connect()
 
-        if not 10000 < amount < 100000:
+        user.execute("SELECT COUNT(*) FROM promocode")
+        count = user.fetchone()[0]
+
+        if count > 15:
+            await ctx.send(embed=await functions.embeds.description("Промокодов уже достаточно.",
+                                                                    "Больше 15 промокодов не может быть создано."))
+            return
+
+        if not 10000 <= amount <= 100000:
             await ctx.send(embed=await functions.embeds.description(f"Вы ввели слишком "
                                                                     f"{'большое' if amount > 100000 else 'маленькое'} "
                                                                     f"значение.",
-                                                                    "Чтобы опять включить промокоды введите ту "
-                                                                    "же самую команду."))
+                                                                    "Пожалуйста уменьшите значение в предел от "
+                                                                    "**10000** до **100000**."))
             return
 
         if thing != 0 and thing != 1:
@@ -251,7 +252,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                   f"{'реверсивок' if all_promocodes[0][3] == 0 else 'зл. реверсивок'}**",
                             inline=False)
 
-        if len(all_promocodes) != 1:
+        if len(all_promocodes) > 1:
             for promocode in all_promocodes[1::]:
                 text_promocode.append(f"Промокод **{promocode[1]}** состовляет "
                                       f"**{promocode[2]} {'реверсивок' if promocode[3] == 0 else 'зл. реверсивок'}**")
@@ -262,7 +263,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         else:
             embed.add_field(name="Промокоды, созданные Администрацией, ОТСУТСТВУЮТ.",
-                            value="\n".join([x for x in text_promocode]))
+                            value="Промокоды, созданные Администрацией, ОТСУТСТВУЮТ.")
 
         try:
             await ctx.author.send(embed=embed)
@@ -271,6 +272,57 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                     f"промокодам.",
                                                                     "Пожалуйста провертье, что Вам могут писать люди, "
                                                                     "даже если они не добавили Вас в друзья."))
+
+    @commands.command(name="промокод",
+                      help="Данные которые нужны для использования этой команды:"
+                           "\n<promo>: промокод.",
+                      brief="<префикс>промокод 123456",
+                      description="Команда, позволяющая активировать промокод.")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    async def promocode(self, ctx, code: int):
+        await MainCommands.profile_check(self, ctx.author)
+
+        if code == 0 or code == 1:
+            await ctx.send(embed=await functions.embeds.description("Запрещенные команды.",
+                                                                    "Так делать нельзя."))
+            return
+
+        conn, user = self.pgsql.connect()
+
+        user.execute(f"SELECT * FROM promocode WHERE code = {code}")
+        promocode = user.fetchone()
+
+        if not promocode:
+            await ctx.send(embed=await functions.embeds.description("Такого промокода не существует.",
+                                                                    "Перепроверте правильность введного вами"
+                                                                    "промокода."))
+            return
+
+        if str(promocode[1])[5] == "5":
+            user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(promocode[2],
+                                                                                             ctx.author.id))
+            conn.commit()
+            await ctx.send(
+                embed=await functions.embeds.description("Промокод был активирован.",
+                                                         f"Вы активировали промокод **{promocode[1]}** "
+                                                         f"на **{promocode[2]}** реверсивок"))
+        elif str(promocode[1])[5] == "6":
+            user.execute('UPDATE users SET goldmoney = goldmoney + {} WHERE "discordID" = {}'.format(promocode[2],
+                                                                                                     ctx.author.id))
+            conn.commit()
+            await ctx.send(
+                embed=await functions.embeds.description("Промокод был активирован.",
+                                                         f"Вы активировали промокод **{promocode[1]}** "
+                                                         f"на **{promocode[2]}** зл. реверсивок"))
+
+        if promocode[0] == 1:
+            user.execute("UPDATE promocode SET code = 1, amount = 0 WHERE id = 1")
+            conn.commit()
+        else:
+            user.execute(f"DELETE FROM promocode WHERE code = {promocode[1]}")
+            conn.commit()
+
+        self.pgsql.close_conn(conn, user)
 
     @commands.command(name='профиль',
                       help="Дополнительные аргументы в этой команде могут быть использованы, только если вам нужно "
@@ -476,57 +528,6 @@ class MainCommands(commands.Cog, name="Основные команды"):
         msgs_deleted.close()
         os.remove("purgedeleted.txt")
 
-    @commands.command(name="промокод",
-                      help="Данные которые нужны для использования этой команды:"
-                           "\n<promo>: промокод.",
-                      brief="<префикс>промокод 123456",
-                      description="Команда, позволяющая активировать промокод.")
-    @commands.cooldown(1, 5, commands.BucketType.user)
-    async def promocode(self, ctx, code: int):
-        await MainCommands.profile_check(self, ctx.author)
-
-        if code == 0 or code == 1:
-            await ctx.send(embed=await functions.embeds.description("Запрещенные команды.",
-                                                                    "Так делать нельзя."))
-            return
-
-        conn, user = self.pgsql.connect()
-
-        user.execute(f"SELECT * FROM promocode WHERE code = {code}")
-        promocode = user.fetchone()
-
-        if not promocode:
-            await ctx.send(embed=await functions.embeds.description("Такого промокода не существует.",
-                                                                    "Перепроверте правильность введного вами"
-                                                                    "промокода."))
-            return
-
-        if str(promocode[1])[5] == "5":
-            user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(promocode[2],
-                                                                                             ctx.author.id))
-            conn.commit()
-            await ctx.send(
-                embed=await functions.embeds.description("Промокод был активирован.",
-                                                         f"Вы активировали промокод **{promocode[1]}** "
-                                                         f"на **{promocode[2]}** реверсивок"))
-        elif str(promocode[1])[5] == "6":
-            user.execute('UPDATE users SET goldmoney = goldmoney + {} WHERE "discordID" = {}'.format(promocode[2],
-                                                                                                     ctx.author.id))
-            conn.commit()
-            await ctx.send(
-                embed=await functions.embeds.description("Промокод был активирован.",
-                                                         f"Вы активировали промокод **{promocode[1]}** "
-                                                         f"на **{promocode[2]}** зл. реверсивок"))
-
-        if promocode[0] == 1:
-            user.execute("UPDATE promocode SET code = 1, amount = 0 WHERE id = 1")
-            conn.commit()
-        else:
-            user.execute(f"DELETE FROM promocode WHERE code = {promocode[1]}")
-            conn.commit()
-
-        self.pgsql.close_conn(conn, user)
-
     @commands.command(name='рулетка',
                       help="Дополнительные аргументы в этой команде не нужны.",
                       brief="<префикс>рулетка",
@@ -543,10 +544,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
         now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
         if date == now.day:
             await ctx.send(embed=await functions.embeds.description("Рулетка для Вас на сегодня уже закончена.",
-                                                                    f"Активировать команды вы смоежете через "
+                                                                    f"Активировать команды вы смоежете через **"
                                                                     f"{24 - now.hour}:"
                                                                     f"{60 - now.minute}:"
-                                                                    f"{60 - now.second}."))
+                                                                    f"{60 - now.second}**."))
             return
 
         user.execute('UPDATE users SET "dateRol" = {} WHERE "discordID" = {}'.format(now.day, ctx.author.id))
@@ -563,6 +564,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
                          format(win, ctx.author.id))
             conn.commit()
             await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"зл. реверсивок"))
+        else:
+            user.execute('UPDATE users SET rating = rating + {} WHERE "discordID" = {}'.
+                         format(win, ctx.author.id))
+            conn.commit()
+            await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"рейтинг"))
 
         self.pgsql.close_conn(conn, user)
 
@@ -868,6 +874,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                       description="Команда, отправляющая в определенный канал шаблон, который можно использовать для "
                                   "чего угодно.")
     @commands.has_permissions(mention_everyone=True)
+    @commands.guild_only()
     @commands.cooldown(1, 30, commands.BucketType.user)
     async def patterns(self, ctx, channel: discord.TextChannel, *, data: str):
 
@@ -904,22 +911,20 @@ class MainCommands(commands.Cog, name="Основные команды"):
         await ctx.send("Шаблон успешно отправлен!", delete_after=10.0)
         await ctx.message.delete()
 
-    @commands.command(name="изменить_шаблон", help="<префикс>изменить_шаблон <ID> <хайлат канал>")
+    @commands.command(name="изменить_шаблон",
+                      help="Данные которые нужны для использования этой команды:"
+                           "\n<channel>: канал куда будет отправлен шаблон"
+                           "\n<заголовок>: должен быть написан на новой строке"
+                           "\n<текст>: последуюие строки после заголовка",
+                      brief="<префикс>шаблон #основной <ЗАГОЛОВОК> <Нов. строчка БЛА БЛА БЛА...>",
+                      description="Команда, отправляющая в определенный канал шаблон, который можно использовать для "
+                                  "чего угодно.")
     @commands.has_permissions(mention_everyone=True)
+    @commands.guild_only()
     @commands.cooldown(1, 30, commands.BucketType.user)
-    async def change_patterns(self, ctx):
+    async def change_patterns(self, ctx, channel: discord.TextChannel, *, data: str):
         command = ctx.message.content.split()
         channel, message, embed, info = None, None, None, None
-
-        if len(command) > 3:
-            await ctx.send("Вы ввели больше параметров, чем необходимо.")
-            return
-
-        if ctx.message.channel_mentions:
-            channel = ctx.message.channel_mentions[0]
-        else:
-            await ctx.send("Канал не найден.")
-            return
 
         try:
             message = await channel.fetch_message(command[1])
@@ -1000,6 +1005,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await new_embed.delete()
 
     @commands.command(name="ботбан", help="<префикс>ботбан <хайлайт роли>")
+    @commands.guild_only()
     @commands.has_permissions(administrator=True)
     @commands.cooldown(1, 30, commands.BucketType.user)
     async def botban(self, ctx, role: discord.Role):
@@ -1016,13 +1022,14 @@ class MainCommands(commands.Cog, name="Основные команды"):
         self.pgsql.close_conn(conn, user)
 
     @commands.command(name="ботразбан", help="<префикс>ботбан <хайлайт роли>")
+    @commands.guild_only()
     @commands.has_permissions(administrator=True)
     @commands.cooldown(1, 30, commands.BucketType.user)
     async def botunban(self, ctx, role: discord.Role):
 
         conn, user = self.pgsql.connect()
 
-        user.execute("DELETE * FROM botban WHERE id = {}".format(id))
+        user.execute("DELETE * FROM botban WHERE id = {}".format(role.id))
         conn.commit()
 
         await ctx.send(embed=await functions.embeds.description("Роль успешно удалена из игнорируемых ботом.",
@@ -1031,7 +1038,25 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         self.pgsql.close_conn(conn, user)
 
+    @commands.command(name="ShutDown", help="<префикс>ShutDown")
+    @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 30, commands.BucketType.user)
+    @commands.guild_only()
+    async def botban(self, ctx, role: discord.Role):
+
+        conn, user = self.pgsql.connect()
+
+        user.execute("INSERT INTO botban (id) VALUES({})".format(role.id))
+        conn.commit()
+
+        await ctx.send(embed=await functions.embeds.description("Роль успешно добавлена в игнорируемые ботом.",
+                                                                "Теперь участники с этой ролью будут игнорироваться "
+                                                                "ботом во всех каналах."))
+
+        self.pgsql.close_conn(conn, user)
+
     @commands.command(name="сервер")
+    @commands.guild_only()
     async def server_info(self, ctx):
         embed = await functions.embeds.server_info(ctx.guild)
         await ctx.send(embed=embed)
@@ -1081,6 +1106,12 @@ class MainCommands(commands.Cog, name="Основные команды"):
             embed.set_footer(text="Ниже представлена дополнительная информация")
             await ctx.send(embed=embed)
             await ctx.send_help(ctx.command)
+        elif isinstance(error, commands.NoPrivateMessage):
+            embed = discord.Embed(colour=discord.Colour.dark_gold())
+            embed.set_author(name="Эта команда может быть использована только на сервере.")
+            embed.description = f"{ctx.author.mention}, команда **{ctx.message.content.split()[0]}** не может быть " \
+                                f"использована в `Личных Сообщениях`."
+            await ctx.send(embed=embed)
         elif isinstance(error, commands.TooManyArguments):
             embed = discord.Embed(colour=discord.Colour.dark_gold())
             embed.set_author(name="Слишком много аргументов в команде.")

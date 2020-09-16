@@ -252,21 +252,21 @@ class Katherine(discord.Client):
 
         @self.client.event
         async def on_message(message):
-            try:
-                conn, user = self.pgsql.connect()
+            if message.author.roles:
+                try:
+                    conn, user = self.pgsql.connect()
 
-                for role in message.author.roles:
-                    user.execute("SELECT * FROM botban WHERE id = %s", [role.id])
-                    member = user.fetchall()
-                    if member:
-                        logger.info("User {} in banbot".format(message.author.name))
-                        self.pgsql.close_conn(conn, user)
-                        return
+                    for role in message.author.roles:
+                        user.execute("SELECT * FROM botban WHERE id = %s", [role.id])
+                        member = user.fetchall()
+                        if member:
+                            self.pgsql.close_conn(conn, user)
+                            return
 
-            except Exception as error:
-                logger.error(error)
-            finally:
-                self.pgsql.close_conn(conn, user)
+                except Exception as error:
+                    logger.error(error)
+                finally:
+                    self.pgsql.close_conn(conn, user)
 
             if message.author.id == self.client.user.id:
                 return

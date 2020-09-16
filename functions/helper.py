@@ -25,13 +25,13 @@ async def random_win():
 async def promo_win():
     win = random.choice([True, False])
     if win:
-        if random.randint(0, 2) == 0:
-            return random.randrange(100000, 600000, 100000), 0
+        if random.choice([True, False]):
+            return random.randrange(100000, 600000, 100000), 1
         else:
-            return random.randrange(10000, 110000, 10000), 0
+            return random.randrange(10000, 110000, 10000), 1
 
     else:
-        if random.randint(0, 2) == 0:
-            return random.randrange(10000, 15000, 1000), 1
+        if random.choice([True, False]):
+            return random.randrange(10000, 15000, 1000), 2
         else:
-            return random.randrange(10000, 60000, 1000), 1
+            return random.randrange(10000, 60000, 1000), 2
