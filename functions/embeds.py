@@ -240,21 +240,19 @@ async def check_ban(ban):
     return embed
 
 
-async def discord_check_ban(ban, player):
+async def discord_check_ban(data_gamer):
     embed = discord.Embed(
         colour=discord.Colour.red()
     )
-    embed.set_author(name=f'Информация по бану игрока {player}')
-    embed.add_field(name='Ник забаненого:',
-                    value=ban[1], inline=False)
+    embed.set_author(name=f'Информация по бану игрока {data_gamer[1]}')
     embed.add_field(name='Точная дата бана: ',
-                    value=time.ctime(int(ban[7])), inline=False)
+                    value=time.ctime(int(data_gamer[7])), inline=False)
     embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{(int(ban[6]) - int(time.time())) // 60} мин.', inline=False)
+                    value=f'{(int(data_gamer[6]) - int(time.time())) // 60} мин.', inline=False)
     embed.add_field(name='Причина бана: ',
-                    value=ban[5], inline=False)
+                    value=data_gamer[5], inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',
-                    value=ban[4], inline=False)
+                    value=data_gamer[4], inline=False)
     return embed
 
 

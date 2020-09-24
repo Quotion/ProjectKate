@@ -201,7 +201,7 @@ class Ban(commands.Cog, name="Система банов"):
                                                                                 f"Игрок (**{data_gamer[0]}**) "
                                                                                 f"не забанен."))
             else:
-                await ctx.channel.send(embed=await functions.embeds.discord_check_ban(data_gamer, client.name))
+                await ctx.channel.send(embed=await functions.embeds.discord_check_ban(data_gamer))
 
         self.pgsql.close_conn(conn, user)
         self.mysql.close_conn(database, gamer)

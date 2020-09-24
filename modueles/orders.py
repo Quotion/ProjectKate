@@ -5,6 +5,7 @@ import logging
 from discord.ext import commands
 from language.treatment_ru import *
 
+
 class Orders(commands.Cog, name="Приказы рангового сервера"):
     def __init__(self, client):
         self.client = client
@@ -14,7 +15,6 @@ class Orders(commands.Cog, name="Приказы рангового сервер�
         logger.setLevel(logging.INFO)
 
         self.logger = logger
-
 
     async def __send_message(self, reaction, ctx, message, embed):
         if reaction.emoji == "✅":

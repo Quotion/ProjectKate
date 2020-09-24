@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import requests
-import random
 import logging
 import os
 import json
@@ -522,7 +521,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         await ctx.channel.purge(limit=count + 1)
 
         channel = discord.utils.get(self.client.get_all_channels(), name='око')
-        await channel.send(embed=await functions.embeds.purge(ctx, count, file=msgs_deleted))
+        await channel.send(embed=await functions.embeds.purge(ctx, count), file=msgs_deleted)
 
         file.close()
         msgs_deleted.close()

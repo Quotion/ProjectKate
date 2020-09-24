@@ -9,6 +9,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 from language.treatment_ru import *
 from pprint import pprint
 
+
 class Sheet(object):
 
     def __init__(self):
