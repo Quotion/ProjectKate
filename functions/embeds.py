@@ -214,11 +214,21 @@ async def swap(ctx, gold, revers, swaps):
     return embed
 
 
-async def ban_message(message, author, steamid, time, reason):
+async def ban_message(nick, author, steamid, time, reason):
     embed = discord.Embed(
-        colour=discord.Colour.magenta()
+        colour=discord.Colour.red()
     )
-    embed.description = message.format(author, steamid, time, reason)
+    embed.set_author(name=f'Информация по бану игрока с ником {nick}')
+    embed.add_field(name='SteamID:',
+                    value=steamid, inline=False)
+    embed.add_field(name='Точная дата бана: ',
+                    value=time.ctime(int(ban[7])), inline=True)
+    embed.add_field(name='Время, через сколько бан окончится: ',
+                    value=f'{time} мин.', inline=False)
+    embed.add_field(name='Причина бана: ',
+                    value=reason, inline=False)
+    embed.add_field(name='Администратор, выписавыший бан: ',
+                    value=author, inline=False)
     return embed
 
 
@@ -232,7 +242,7 @@ async def check_ban(ban):
     embed.add_field(name='Точная дата бана: ',
                     value=time.ctime(int(ban[7])), inline=True)
     embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{(int(ban[6]) - int(time.time())) // 60} мин.', inline=False)
+                    value=f'{(int(time.time()) - int(ban[6])) // 60} мин.', inline=False)
     embed.add_field(name='Причина бана: ',
                     value=ban[5], inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',
@@ -248,7 +258,7 @@ async def discord_check_ban(data_gamer):
     embed.add_field(name='Точная дата бана: ',
                     value=time.ctime(int(data_gamer[7])), inline=False)
     embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{(int(data_gamer[6]) - int(time.time())) // 60} мин.', inline=False)
+                    value=f'{(int(time.time()) - int(data_gamer[6])) // 60} мин.', inline=False)
     embed.add_field(name='Причина бана: ',
                     value=data_gamer[5], inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',

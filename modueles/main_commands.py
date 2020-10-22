@@ -8,6 +8,7 @@ from pprint import pprint
 
 import discord
 from discord.ext import commands, tasks
+from models import *
 import random
 
 from PIL import Image
@@ -40,15 +41,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         self.generate_promo.start()
 
     async def profile_check(self, author):
-        conn, user = self.pgsql.connect()
-        try:
-            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
-            user.execute("INSERT INTO users VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                         (author.id, 0, 0, 0, 1, now.day - 1, None, json.dumps({str(author.guild.id): {}})))
-        except Exception:
-            raise commands.CommandError()
-        finally:
-            self.pgsql.close_conn(conn, user)
+        UserDiscord.insert(discord_id=author.id)
 
     @tasks.loop(minutes=random.randint(420, 900))
     async def generate_promo(self):
@@ -297,7 +290,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                     "промокода."))
             return
 
-        if str(promocode[1])[5] == "5":
+        if promocode[3] == 0:
             user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(promocode[2],
                                                                                              ctx.author.id))
             conn.commit()
@@ -305,7 +298,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 embed=await functions.embeds.description("Промокод был активирован.",
                                                          f"Вы активировали промокод **{promocode[1]}** "
                                                          f"на **{promocode[2]}** реверсивок"))
-        elif str(promocode[1])[5] == "6":
+        elif promocode[3] == 1:
             user.execute('UPDATE users SET goldmoney = goldmoney + {} WHERE "discordID" = {}'.format(promocode[2],
                                                                                                      ctx.author.id))
             conn.commit()
@@ -343,7 +336,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
             name_of_currency = "рев."
 
             if args:
-                client = await commands.MemberConverter().convert(ctx, args[0])
+                if not isinstance(args[0], discord.Member):
+                    client = await commands.MemberConverter().convert(ctx, args[0])
+                else:
+                    client = args[0]
                 if not client:
                     await ctx.send(embed=await functions.embeds.description(f"Пользователь не был найден.",
                                                                             "Профиль данного пользователя не может "
@@ -380,7 +376,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                     name_of_currency=name_of_currency)
 
                 try:
-                    img_profile = Image.open("stuff/profile2.jpg")
+                    img_profile = Image.open("stuff/profilehalloween.jpg")
 
                     fileRequest = requests.get(user_ctx.avatar_url)
                     img_avatar = Image.open(BytesIO(fileRequest.content))
@@ -396,13 +392,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
                     draw.text((430, 325), user_ctx.name, (255, 255, 255), font=nick_font)
 
-                    if str(ctx.author.status) == "online":
+                    if str(user_ctx.status) == "online":
                         draw.text((430, 435), "Онлайн", (255, 255, 255), font=text_font)
-                    elif str(ctx.author.status) == "idle":
+                    elif str(user_ctx.status) == "idle":
                         draw.text((430, 435), "Отошел, но при это посмотрел профиль", (255, 255, 255), font=text_font)
-                    elif str(ctx.author.status) == "dnd":
+                    elif str(user_ctx.status) == "dnd":
                         draw.text((430, 435), "Не беспокоить", (255, 255, 255), font=text_font)
-                    elif str(ctx.author.status) == "offline":
+                    elif str(user_ctx.status) == "offline":
                         draw.text((430, 435), "Не в сети, но мы то знаем...", (255, 255, 255), font=text_font)
                     else:
                         draw.text((430, 435), "Онлайн", (255, 255, 255), font=text_font)
@@ -1066,6 +1062,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
+
         if not self.poll_time or user.id == self.client.user.id:
             return
 

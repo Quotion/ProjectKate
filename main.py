@@ -8,6 +8,7 @@ from modueles.ban_system import Ban
 from modueles.invests import Invests
 from modueles.rprequest import RPrequest
 from modueles.orders import Orders
+from models import *
 import functions.embeds
 import datetime
 import discord
@@ -28,6 +29,16 @@ class Katherine(discord.Client):
     def __init__(self, client):
         self.client = client
 
+        db.connect(reuse_if_open=True)
+        db.create_tables([GmodPlayer,
+                          GmodBan,
+                          UserDiscord,
+                          RolesDiscord,
+                          RolesDiscord.discord_id.get_through_model(),
+                          BanRole,
+                          Promocode,
+                          StatusDB])
+
         self.pgsql = PgSQLConnection()
 
         self.on_ready()
@@ -40,6 +51,8 @@ class Katherine(discord.Client):
         # self.client.add_cog(Invests(client))
         self.client.add_cog(RPrequest(client))
         self.client.add_cog(Orders(client))
+
+        channel = discord.utils.get(self.client.get_all_channels(), name='бот')
 
     def on_ready(self):
 
@@ -250,6 +263,13 @@ class Katherine(discord.Client):
                 logger.info("Message was raw delete.")
 
             self.pgsql.close_conn(conn, user)
+
+        @self.client.event
+        async def on_raw_reaction_add(payload):
+            guild = self.client.get_guild(payload.guild_id)
+            role = guild.get_role(699898326698688542)
+            if payload.message_id == 768536526207844372 and payload.emoji.name == "✅":
+                await payload.member.add_roles(role)
 
         @self.client.event
         async def on_message(message):

@@ -1,4 +1,5 @@
 import discord
+from models import *
 from discord.ext import commands
 from functions.database import PgSQLConnection, MySQLConnection
 import functions
@@ -20,7 +21,17 @@ class Ban(commands.Cog, name="Система банов"):
         self.mysql = MySQLConnection()
         self.pgsql = PgSQLConnection()
 
-    async def check_client(self, ctx, client, gamer):
+    async def open_connect(self):
+        try:
+            db.connect(reuse_if_open=True)
+        except Exception as error:
+            logging.error(error)
+            return False
+        else:
+            return True
+
+    @commands.check(open_connect)
+    async def check_client(self, ctx, client):
         if client.find("<@!") != -1:
             client = await commands.MemberConverter().convert(ctx, client)
             if not client:
@@ -34,9 +45,8 @@ class Ban(commands.Cog, name="Система банов"):
                 return client
         else:
             client = client.upper()
-            gamer.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(client))
-            data = gamer.fetchall()
-            if not data:
+            data = GmodPlayer.select().where(GmodPlayer.SID == client)
+            if len(data) < 1:
                 self.logger.error("SteamID for ban not in BD.")
                 await ctx.channel.send(embed=await functions.embeds.description("SteamID не найдено в базе данных.",
                                                                                 "Игрок с таким SteamID ниразу не "
@@ -49,38 +59,43 @@ class Ban(commands.Cog, name="Система банов"):
                 return client
 
     @staticmethod
-    async def get_data_gamer(ctx, client, user, gamer):
+    @commands.check(open_connect)
+    async def get_data_gamer(ctx, client):
         if isinstance(client, discord.Member):
-            user.execute(f"SELECT steamid FROM users WHERE \"discordID\" = {client.id}")
-            steamid = user.fetchone()[0]
-            if not steamid or steamid == "None":
+            try:
+                user = UserDiscord.get(UserDiscord.discord_id == client.id)
+            except peewee.DoesNotExist:
+                await ctx.channel.send(embed=await functions.embeds.description("У данного пользователя нету профиля",
+                                                                                "Вы не сможете забанить данного игрока"
+                                                                                "через Discord, т.к. у него нету"
+                                                                                "профиля."))
+                return None
+
+            if not user.SID:
                 await ctx.channel.send(embed=await functions.embeds.description("Игрок не синхронизирован",
                                                                                 "Игрок с таким Discord-ом не "
                                                                                 "синхронизирован. Введите его SteamID, "
                                                                                 "чтобы забанить."))
                 return None
-            else:
-                gamer.execute(f"SELECT * FROM users_steam WHERE steamid = '{steamid}'")
-                data_gamer = gamer.fetchone()
-                if not data_gamer:
-                    await ctx.channel.send(
-                        embed=await functions.embeds.description("Игрок ни разу не заходил на сервер",
-                                                                 "Игрок с таким серверов ни разу не "
-                                                                 "заходил на сервер."))
-                    return None
-                else:
-                    return data_gamer
 
-        else:
-            gamer.execute(f"SELECT * FROM users_steam WHERE steamid = '{client}'")
-            data_gamer = gamer.fetchone()
-            if not data_gamer:
-                await ctx.channel.send(embed=await functions.embeds.description("Игрок ни разу не заходил на сервер",
-                                                                                "Игрок с таким серверов ни разу не "
-                                                                                "заходил на ."))
+            data_gamer = GmodPlayer.select().where(GmodPlayer.SID == steamid[0])
+            if len(data_gamer) < 1:
+                await ctx.channel.send(
+                    embed=await functions.embeds.description("Игрок ни разу не заходил на сервер",
+                                                             "Игрок с таким серверов ни разу не "
+                                                             "заходил на сервер."))
                 return None
             else:
                 return data_gamer
+
+        data_gamer = GmodPlayer.select().where(GmodPlayer.SID == client)
+        if len(data_gamer) < 1:
+            await ctx.channel.send(embed=await functions.embeds.description("Игрок ни разу не заходил на сервер",
+                                                                            "Игрок с таким серверов ни разу не "
+                                                                            "заходил на ."))
+            return None
+        else:
+            return data_gamer
 
     @commands.command(
         name='бан',
@@ -92,6 +107,7 @@ class Ban(commands.Cog, name="Система банов"):
         description="Команда, с помощью которой, можно забнить игрока, не заходя на сервер.")
     @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
     async def ban(self, ctx, client: str, time: int, *, reason: str):
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
@@ -104,7 +120,7 @@ class Ban(commands.Cog, name="Система банов"):
         time_ban = int(datetime.datetime.today().timestamp())
         time_unban = int(time) * 60 + int(datetime.datetime.today().timestamp())
 
-        data_gamer = self.get_steamid(ctx, client, user, gamer)
+        data_gamer = await self.get_data_gamer(ctx, client, user, gamer)
 
         if not data_gamer:
             return
@@ -115,9 +131,9 @@ class Ban(commands.Cog, name="Система банов"):
             gamer.execute(f"UPDATE users_steam SET ban_reason = '{reason}', ban_admin = '{ctx.author.name}', "
                           f"ban_date = {time_ban}, unban_date = {time_unban} WHERE steamid = '{data_gamer[0]}'")
             database.commit()
-            await ctx.channel.send(embed=await functions.embeds.ban_message(reason, ctx.author.mention,
+            await ctx.channel.send(embed=await functions.embeds.ban_message(data_gamer[1], ctx.author.mention,
                                                                             data_gamer[0], (time_unban - time_ban)
-                                                                            // 60, reason))
+                                                                            // 60))
         else:
             await ctx.channel.send(embed=await functions.embeds.description("Игрок уже забанен",
                                                                             "Игрок {}({}) уже был забанен по "
@@ -137,6 +153,7 @@ class Ban(commands.Cog, name="Система банов"):
         description="Команда, с помощью которой, можно разбанить игрока, не заходя на сервер.")
     @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
     async def unban(self, ctx, client: str):
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
@@ -174,16 +191,17 @@ class Ban(commands.Cog, name="Система банов"):
         brief="<префикс>проверь",
         description="Команда, с помощью которой, можно проверить игрока, находится ли тот в бане или нет.")
     @commands.cooldown(1, 30, commands.BucketType.user)
+    @commands.check(open_connect)
     async def check_ban(self, ctx, client: str):
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
 
-        client = await self.check_client(ctx, client, gamer)
+        client = await self.check_client(ctx, client)
 
         if not client:
             return
 
-        data_gamer = await self.get_data_gamer(ctx, client, user, gamer)
+        data_gamer = await self.get_data_gamer(ctx, client)
 
         if not data_gamer:
             return
@@ -214,6 +232,7 @@ class Ban(commands.Cog, name="Система банов"):
                       description="Команда, с помощью которой, можно синхронизировать аккаунт в Garry's mod и Discord,"
                                   "чтобы стало удобно менять Ваш ранг или просмотривать Вашу статистику.")
     @commands.cooldown(1, 10, commands.BucketType.user)
+    @commands.check(open_connect)
     async def sync(self, ctx, data: str):
         try:
             conn, user = self.pgsql.connect()
@@ -296,6 +315,7 @@ class Ban(commands.Cog, name="Система банов"):
                       description="Команда, с помощью которой, можно изменить ранг игрока, не заходя на сервер.")
     @commands.cooldown(1, 10, commands.BucketType.user)
     @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
     async def set_rank(self, ctx, client: str, rank: str):
         conn, user = self.pgsql.connect()
         database, gamer = self.mysql.connect()
