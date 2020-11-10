@@ -6,7 +6,7 @@ from discord.ext import commands
 from language.treatment_ru import *
 
 
-class Orders(commands.Cog, name="Приказы рангового сервера"):
+class Orders(commands.Cog, name="Приказы R/N сервера"):
     def __init__(self, client):
         self.client = client
         self.check = True
@@ -119,7 +119,7 @@ class Orders(commands.Cog, name="Приказы рангового сервер�
         if not self.check:
             await ctx.send(order_still_not_check.format(ctx.author.mention))
             return
-            
+
         now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
 
         embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))

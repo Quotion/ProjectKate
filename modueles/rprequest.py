@@ -30,7 +30,7 @@ class Sheet(object):
                           ['https://www.googleapis.com/auth/spreadsheets',
                            'https://www.googleapis.com/auth/drive'])
             httpAuth = credentials.authorize(httplib2.Http())
-            service = apiclient.discovery.build('sheets', 'v4', http = httpAuth, cache_discovery=False)
+            service = apiclient.discovery.build('sheets', 'v4', http=httpAuth, cache_discovery=False)
         except Exception as error:
             self.logger.error(error)
             return None

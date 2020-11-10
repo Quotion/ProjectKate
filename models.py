@@ -10,6 +10,7 @@ with open("functions/info", "r", encoding="utf8") as file:
         database=config[3],
         port=3306
     )
+    db.execute_sql("SET NAMES 'utf8'")
 
 
 class DBModel(peewee.Model):
@@ -32,7 +33,7 @@ class GmodPlayer(DBModel):
 class GmodBan(DBModel):
     SID = peewee.ForeignKeyField(GmodPlayer, field="SID",
                                  on_update="cascade", on_delete="cascade")
-    ban = peewee.BooleanField(default=False)
+    ban = peewee.SmallIntegerField(default=0)
     ban_admin = peewee.TextField()
     ban_reason = peewee.TextField()
     ban_date = peewee.TextField()
@@ -43,21 +44,20 @@ class GmodBan(DBModel):
 
 
 class UserDiscord(DBModel):
-    discord_id = peewee.BigIntegerField(primary_key=True)
+    discord_id = peewee.BigIntegerField(unique=True)
     rating = peewee.IntegerField(default=0)
     money = peewee.BigIntegerField(default=0)
     gold_money = peewee.BigIntegerField(default=0)
     chance_roulette = peewee.BooleanField(default=True)
-    SID = peewee.CharField(max_length=32, default="STEAM_0:0:0000000")
-    role_id = peewee.BigIntegerField()
+    SID = peewee.CharField(max_length=32, null=True)
 
     class Meta:
         db_table = "ds_users"
 
 
-class RolesDiscord(DBModel):
-    role_id = peewee.BigIntegerField()
-    discord_id = peewee.ManyToManyField(UserDiscord)
+class RoleDiscord(DBModel):
+    role_id = peewee.BigIntegerField(unique=True)
+    discord_id = peewee.ManyToManyField(UserDiscord, backref='user_role')
 
     class Meta:
         db_table = "ds_roles"
@@ -73,8 +73,9 @@ class Promocode(DBModel):
         db_table = "promocodes"
 
 
-class StatusDB(DBModel):
-    ip = peewee.CharField(primary_key=True, max_length=24, null=False)
+class StatusGMS(DBModel):
+    ip = peewee.CharField(unique=True, max_length=24, null=False)
+    name = peewee.TextField(default="Название сервера")
     message = peewee.BigIntegerField(null=False)
     collection = peewee.BigIntegerField(null=False)
 
@@ -87,3 +88,42 @@ class BanRole(DBModel):
 
     class Meta:
         db_table = "ban_role"
+
+
+class DonateUser(DBModel):
+    SID = peewee.ForeignKeyField(GmodPlayer, field="SID",
+                                 on_update="cascade", on_delete="cascade")
+    donate = peewee.BooleanField(null=False, default=False)
+    date_start = peewee.IntegerField(default=0)
+    date_end = peewee.IntegerField(default=0)
+
+
+class DriveStatistic(DBModel):
+    SID = peewee.ForeignKeyField(GmodPlayer, field="SID",
+                                 on_update="cascade", on_delete="cascade", primary_key=True)
+    ema_502 = peewee.IntegerField(null=False, default=0)
+    d_702 = peewee.IntegerField(null=False, default=0)
+    e_703 = peewee.IntegerField(null=False, default=0)
+    ezh_707 = peewee.IntegerField(null=False, default=0)
+    ezh3_710 = peewee.IntegerField(null=False, default=0)
+    mvm_717 = peewee.IntegerField(null=False, default=0)
+    lvz_717 = peewee.IntegerField(null=False, default=0)
+    tisu_718 = peewee.IntegerField(null=False, default=0)
+    yauza_720 = peewee.IntegerField(null=False, default=0)
+    sbp_722 = peewee.IntegerField(null=False, default=0)
+    alien = peewee.IntegerField(null=False, default=0)
+    oka_760 = peewee.IntegerField(null=False, default=0)
+    oka_760a = peewee.IntegerField(null=False, default=0)
+    all_time_on_server = peewee.IntegerField(null=False, default=0)
+
+    class Meta:
+        db_table = "drive_statistic"
+        order_by = ("all_time_on_server", )
+
+
+class RolesGmod(DBModel):
+    name = peewee.TextField(null=False)
+    group = peewee.TextField(null=False)
+
+
+RoleUser = RoleDiscord.discord_id.get_through_model()

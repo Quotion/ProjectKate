@@ -109,6 +109,10 @@ async def delete_message(message, content):
     embed.add_field(name='Текст сообщения:',
                     value=content,
                     inline=False)
+    if message.attachments:
+        embed.add_field(name='Вложение:',
+                        value=message.attachments[0].proxy_url,
+                        inline=False)
     embed.set_thumbnail(url=message.author.avatar_url)
     embed.set_footer(text=f"{message.author.name} | {message.channel.name} | {now.strftime('%d.%m.%Y')}")
     return embed
@@ -214,21 +218,21 @@ async def swap(ctx, gold, revers, swaps):
     return embed
 
 
-async def ban_message(nick, author, steamid, time, reason):
+async def ban_message(data_gamer):
     embed = discord.Embed(
         colour=discord.Colour.red()
     )
-    embed.set_author(name=f'Информация по бану игрока с ником {nick}')
+    embed.set_author(name=f'Информация по бану игрока с ником {data_gamer.SID.nick}')
     embed.add_field(name='SteamID:',
-                    value=steamid, inline=False)
+                    value=data_gamer.SID_id, inline=False)
     embed.add_field(name='Точная дата бана: ',
-                    value=time.ctime(int(ban[7])), inline=True)
+                    value=time.ctime(int(data_gamer.ban_date)), inline=True)
     embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{time} мин.', inline=False)
+                    value=f'{(data_gamer.unban_date - data_gamer.ban_date) // 60} мин.', inline=False)
     embed.add_field(name='Причина бана: ',
-                    value=reason, inline=False)
+                    value=data_gamer.ban_reason, inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',
-                    value=author, inline=False)
+                    value=data_gamer.ban_admin, inline=False)
     return embed
 
 
@@ -254,15 +258,15 @@ async def discord_check_ban(data_gamer):
     embed = discord.Embed(
         colour=discord.Colour.red()
     )
-    embed.set_author(name=f'Информация по бану игрока {data_gamer[1]}')
+    embed.set_author(name=f'Информация по бану игрока {data_gamer.SID.nick}')
     embed.add_field(name='Точная дата бана: ',
-                    value=time.ctime(int(data_gamer[7])), inline=False)
+                    value=time.ctime(int(data_gamer.ban_date)), inline=False)
     embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{(int(time.time()) - int(data_gamer[6])) // 60} мин.', inline=False)
+                    value=f'{(int(data_gamer.unban_date) - int(time.time())) // 60} мин.', inline=False)
     embed.add_field(name='Причина бана: ',
-                    value=data_gamer[5], inline=False)
+                    value=data_gamer.ban_reason, inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',
-                    value=data_gamer[4], inline=False)
+                    value=data_gamer.ban_admin, inline=False)
     return embed
 
 

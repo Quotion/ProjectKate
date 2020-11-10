@@ -5,6 +5,8 @@ import logging
 import os
 import json
 from pprint import pprint
+import steam.steamid
+from valve.rcon import *
 
 import discord
 from discord.ext import commands, tasks
@@ -16,7 +18,6 @@ from PIL import ImageFont
 from PIL import ImageDraw
 from io import BytesIO
 
-import functions.database
 import functions.helper
 from functions.create_plot import create_figure
 
@@ -32,21 +33,30 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         self.logger = logger
 
-        self.mysql = functions.database.MySQLConnection()
-        self.pgsql = functions.database.PgSQLConnection()
-
         self.poll_time['choice_on'] = False
         self.poll_time['message'] = None
 
         self.generate_promo.start()
 
-    async def profile_check(self, author):
-        UserDiscord.insert(discord_id=author.id)
+    async def open_connect(self):
+        try:
+            db.connect()
+            db.execute_sql("SET NAMES 'utf8'")
+            return True
+        except peewee.OperationalError:
+            db.close()
+            db.connect()
+            db.execute_sql("SET NAMES 'utf8'")
+            return True
+
+    @staticmethod
+    @commands.check(open_connect)
+    async def profile_check(author):
+        UserDiscord.insert(discord_id=author.id).on_conflict_ignore().execute()
 
     @tasks.loop(minutes=random.randint(420, 900))
+    @commands.check(open_connect)
     async def generate_promo(self):
-        conn, user = self.pgsql.connect()
-
         promo_event = ["Продам {} {}ок бесплатно.\nПромокод: `{}`",
                        "Тут мне администраторы нашептали, что стоит вам дать кое-что интересное на {} {}ок\nПромокод: "
                        "`{}`",
@@ -69,28 +79,24 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
                        "А ты готов прыгнуть в пучину отчаиния за {} {}ок? И я нет, поэтому и не надо.\nПромокод: `{}`"]
 
-        user.execute("SELECT * FROM promocode WHERE id = 1 AND create_admin = False")
-        promocode = user.fetchall()
-        if not promocode:
-            return
-
-        promocode = promocode[0]
+        promocode_info = Promocode.get(Promocode.id == 1)
 
         channel = discord.utils.get(self.client.get_all_channels(), name='бот')
         comment = random.choice(promo_event)
 
-        if promocode[1] > 1:
-            code = promocode[1]
-            amount = promocode[2]
-            thing = promocode[3]
-        elif promocode[1] == 1:
+        if promocode_info.code > 1:
+            code = promocode_info.code
+            amount = promocode_info.amount
+            thing = promocode_info.thing
+        elif promocode_info.code == 1:
             amount, thing = await functions.helper.promo_win()
             code = str(random.randint(10000, 100000)) + str(thing + 4)
 
-            user.execute(f"UPDATE promocode SET code = {code}, amount = {amount}, thing = {thing} "
-                         f"WHERE create_admin = False")
-            conn.commit()
-        elif promocode[1] == 0:
+            promocode_info.code = code
+            promocode_info.amount = amount
+            promocode_info.thing = thing
+            promocode_info.save()
+        elif promocode_info.code == 0:
             return
 
         await channel.send(embed=await functions.embeds.promocode("Новый промокод!",
@@ -98,9 +104,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                       amount,
                                                                       "реверсив" if thing == 1 else "зл. реверсив",
                                                                       code),
-                                                                  promocode[4]))
-
-        self.pgsql.close_conn(conn, user)
+                                                                  promocode_info.creating_admin))
 
     @commands.command(name='промокоды',
                       help="Дополнительные аргументы в этой команде не нужны.",
@@ -109,32 +113,23 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
     async def promo_switch(self, ctx):
         def check(msg):
             return msg.content.lower() == "да" or msg.content.lower() == "нет" \
                    and msg.author.guild_permissions.administrator
 
-        conn, user = self.pgsql.connect()
-        user.execute("SELECT code FROM promocode WHERE id = 1 AND create_admin = False")
-        code = user.fetchone()
+        promocode_info = Promocode.get(Promocode.id == 1)
 
-        if not code:
-            user.execute("INSERT INTO promocode (code, create_admin) VALUES (1, False)")
-            conn.commit()
+        if promocode_info.code == 0:
+            promocode_info.code = 1
+            promocode_info.save()
             await ctx.send(embed=await functions.embeds.description("Промокоды теперь ДОСТУПНЫ.",
                                                                     "В течении 8 часов должен прийти первый "
                                                                     "промокод, который можно активировать с "
                                                                     "помощью команды **{}промокод**"
                                                                     .format(self.client.command_prefix[0])))
-        elif code[0] == 0:
-            user.execute("UPDATE promocode SET code = 1 WHERE id = 1 AND create_admin = False")
-            conn.commit()
-            await ctx.send(embed=await functions.embeds.description("Промокоды теперь ДОСТУПНЫ.",
-                                                                    "В течении 8 часов должен прийти первый "
-                                                                    "промокод, который можно активировать с "
-                                                                    "помощью команды **{}промокод**"
-                                                                    .format(self.client.command_prefix[0])))
-        elif code[0] != 0:
+        elif promocode_info.code != 0:
             await ctx.send(embed=await functions.embeds.description("Вы уверены, что хотите отключить промокоды?",
                                                                     "\nЕсли ДА, то введите слово **ДА**"
                                                                     "\nЕсли НЕТ, то введите слово НЕТ"),
@@ -145,15 +140,15 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 await ctx.send("Отключение промокодов отменено.", delete_after=5.0)
             else:
                 if message.content.lower() == "да":
-                    user.execute("UPDATE promocode SET code = 0, amount = 0 WHERE id = 1 AND create_admin = False")
-                    conn.commit()
+                    promocode_info.code = 0
+                    promocode_info.amount = 0
+                    promocode_info.thing = 0
+                    promocode_info.save()
                     await ctx.send(embed=await functions.embeds.description("Промокоды теперь НЕ ДОСТУПНЫ.",
                                                                             "Чтобы опять включить промокоды введите ту "
                                                                             "же самую команду."))
                 else:
                     await ctx.send("Отключение промокодов отменено.", delete_after=5.0)
-
-        self.pgsql.close_conn(conn, user)
 
     @commands.command(name='создать_промокод',
                       help="Данные которые нужны для использования этой команды:"
@@ -166,11 +161,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
     async def create_promocode(self, ctx, amount: int, thing: int):
-        conn, user = self.pgsql.connect()
 
-        user.execute("SELECT COUNT(*) FROM promocode")
-        count = user.fetchone()[0]
+        count = Promocode.select().count()
 
         if count > 15:
             await ctx.send(embed=await functions.embeds.description("Промокодов уже достаточно.",
@@ -195,9 +189,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         code = str(random.randint(10000, 100000)) + str(thing + 4)
 
-        user.execute(f"INSERT INTO promocode (code, amount, thing, create_admin) "
-                     f"VALUES ({code}, {amount}, {thing}, True)")
-        conn.commit()
+        Promocode.insert(code=code,
+                         amount=amount,
+                         thing=thing,
+                         create_admin=True)
 
         try:
             await ctx.author.send(embed=
@@ -209,10 +204,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send(embed=await functions.embeds.description(f"Невозможно отправить Вам промокод.",
                                                                     "Пожалуйста провертье, что Вам могут писать люди, "
                                                                     "даже если они не добавили Вас в друзья."))
-            user.execute(f"DELETE * FROM promocode WHERE code = {code} AND create_admin = True")
-            conn.commit()
-
-        self.pgsql.close_conn(conn, user)
+            Promocode.delete()
 
     @commands.command(name='просмотреть_промокоды',
                       help="Дополнительные аргументы в этой команде не нужны.",
@@ -221,41 +213,42 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
     async def check_promocode(self, ctx):
-        conn, user = self.pgsql.connect()
-
-        user.execute("SELECT * FROM promocode")
-        all_promocodes = user.fetchall()
+        all_promocodes = Promocode.select()
 
         embed = discord.Embed(colour=discord.Colour.dark_green(), title="Все промокоды доступные на сервере.")
         embed.set_author(name=ctx.guild.name)
 
         text_promocode = list()
 
-        if all_promocodes[0][1] == 0:
-            embed.add_field(name="Промокод выводимый автоматически ВЫКЛЮЧЕНЫ",
-                            value=f"Чтобы их включить введите команду {self.client.command_prefix[0]}промокод.")
-        elif all_promocodes[0][1] == 1:
-            embed.add_field(name="Промокод, создаваемый автоматически был использован.",
-                            value=f"Промокод, создаваемый автоматически был использован.")
-        elif all_promocodes[0][1] > 1:
-            embed.add_field(name="Промокод, создаваемый автоматически:",
-                            value=f"Промокод **{all_promocodes[0][1]}** состовляет **{all_promocodes[0][2]} "
-                                  f"{'реверсивок' if all_promocodes[0][3] == 0 else 'зл. реверсивок'}**",
+        for promo in all_promocodes:
+            if promo.code == 0 and promo.id == 1:
+                embed.add_field(name="Промокод выводимый автоматически ВЫКЛЮЧЕНЫ",
+                                value=f"Чтобы их включить введите команду {self.client.command_prefix[0]}промокод.",
+                                inline=False)
+            elif promo.code == 1 and promo.id == 1:
+                embed.add_field(name="Промокод, создаваемый автоматически был использован.",
+                                value=f"Промокод, создаваемый автоматически был использован.",
+                                inline=False)
+            elif promo.code > 1 and promo.id == 1:
+                embed.add_field(name="Промокод, создаваемый автоматически:",
+                                value=f"Промокод **{all_promocodes[0][1]}** состовляет **{all_promocodes[0][2]} "
+                                      f"{'реверсивок' if all_promocodes[0][3] == 0 else 'зл. реверсивок'}**",
+                                inline=False)
+
+            else:
+                text_promocode.append(f"Промокод **{promo.code}** состовляет "
+                                      f"**{promo.amount} {'реверсивок' if promo.thing == 0 else 'зл. реверсивок'}**")
+
+        if len(text_promocode) == 0:
+            embed.add_field(name="Промокоды, созданные Администрацией, ОТСУТСТВУЮТ.",
+                            value="Промокоды, созданные Администрацией, ОТСУТСТВУЮТ.",
                             inline=False)
-
-        if len(all_promocodes) > 1:
-            for promocode in all_promocodes[1::]:
-                text_promocode.append(f"Промокод **{promocode[1]}** состовляет "
-                                      f"**{promocode[2]} {'реверсивок' if promocode[3] == 0 else 'зл. реверсивок'}**")
-
+        else:
             embed.add_field(name="Промокоды, созданные Администрацией",
                             value="\n".join([x for x in text_promocode]),
                             inline=False)
-
-        else:
-            embed.add_field(name="Промокоды, созданные Администрацией, ОТСУТСТВУЮТ.",
-                            value="Промокоды, созданные Администрацией, ОТСУТСТВУЮТ.")
 
         try:
             await ctx.author.send(embed=embed)
@@ -271,50 +264,45 @@ class MainCommands(commands.Cog, name="Основные команды"):
                       brief="<префикс>промокод 123456",
                       description="Команда, позволяющая активировать промокод.")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.check(open_connect)
     async def promocode(self, ctx, code: int):
-        await MainCommands.profile_check(self, ctx.author)
+        await self.profile_check(ctx.author)
 
         if code == 0 or code == 1:
             await ctx.send(embed=await functions.embeds.description("Запрещенные команды.",
                                                                     "Так делать нельзя."))
             return
 
-        conn, user = self.pgsql.connect()
-
-        user.execute(f"SELECT * FROM promocode WHERE code = {code}")
-        promocode = user.fetchone()
-
-        if not promocode:
+        try:
+            promocode_info = Promocode.get(Promocode.code == code)
+        except peewee.DoesNotExist:
             await ctx.send(embed=await functions.embeds.description("Такого промокода не существует.",
                                                                     "Перепроверте правильность введного вами"
                                                                     "промокода."))
             return
 
-        if promocode[3] == 0:
-            user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(promocode[2],
-                                                                                             ctx.author.id))
-            conn.commit()
-            await ctx.send(
-                embed=await functions.embeds.description("Промокод был активирован.",
-                                                         f"Вы активировали промокод **{promocode[1]}** "
-                                                         f"на **{promocode[2]}** реверсивок"))
-        elif promocode[3] == 1:
-            user.execute('UPDATE users SET goldmoney = goldmoney + {} WHERE "discordID" = {}'.format(promocode[2],
-                                                                                                     ctx.author.id))
-            conn.commit()
-            await ctx.send(
-                embed=await functions.embeds.description("Промокод был активирован.",
-                                                         f"Вы активировали промокод **{promocode[1]}** "
-                                                         f"на **{promocode[2]}** зл. реверсивок"))
+        user = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
 
-        if promocode[0] == 1:
-            user.execute("UPDATE promocode SET code = 1, amount = 0 WHERE id = 1")
-            conn.commit()
+        if promocode_info.thing == 0:
+            user.money = user.money + promocode_info.amount
+            user.save()
+            await ctx.send(
+                embed=await functions.embeds.description("Промокод был активирован.",
+                                                         f"Вы активировали промокод **{promocode_info.code}** "
+                                                         f"на **{promocode_info.amount}** реверсивок"))
+        elif promocode_info.thing == 1:
+            user.gold_money = user.gold_money + promocode_info.amount
+            user.save()
+            await ctx.send(
+                embed=await functions.embeds.description("Промокод был активирован.",
+                                                         f"Вы активировали промокод **{promocode_info.code}** "
+                                                         f"на **{promocode_info.amount}** зл. реверсивок"))
+
+        if promocode_info.id == 1:
+            promocode_info.code = 1
+            promocode_info.amount = 0
         else:
-            user.execute(f"DELETE FROM promocode WHERE code = {promocode[1]}")
-            conn.commit()
-
-        self.pgsql.close_conn(conn, user)
+            promocode_info.delete_instance()
 
     @commands.command(name='профиль',
                       help="Дополнительные аргументы в этой команде могут быть использованы, только если вам нужно "
@@ -323,23 +311,25 @@ class MainCommands(commands.Cog, name="Основные команды"):
                       description="С помощью этой команды вы можете узнать всю информацию о себе, а также просмотреть "
                                   "информацию о другом участнике.")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.check(open_connect)
     async def profile(self, ctx, *args):
-        await MainCommands.profile_check(self, ctx.author)
+        await self.profile_check(ctx.author)
 
         if len(args) > 1:
             raise commands.TooManyArguments()
 
-        conn, user = self.pgsql.connect()
-        data = None
+        data, client = None, None
 
         async with ctx.typing():
             name_of_currency = "рев."
 
             if args:
-                if not isinstance(args[0], discord.Member):
-                    client = await commands.MemberConverter().convert(ctx, args[0])
+                user = args[0]
+                if not isinstance(user, discord.Member):
+                    client = await commands.MemberConverter().convert(ctx, user)
                 else:
-                    client = args[0]
+                    client = user
+
                 if not client:
                     await ctx.send(embed=await functions.embeds.description(f"Пользователь не был найден.",
                                                                             "Профиль данного пользователя не может "
@@ -347,144 +337,136 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                             "найден на этом сервере."))
                     return
                 await MainCommands.profile_check(self, client)
-                user.execute('SELECT * FROM users WHERE "discordID" = %s', [client.id])
+                data = UserDiscord.get(UserDiscord.discord_id == client.id)
                 user_ctx = client
             elif len(ctx.message.content.split()) == 1:
-                user.execute('SELECT * FROM users WHERE "discordID" = %s', [ctx.author.id])
+                data = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
                 user_ctx = ctx.author
 
-            try:
-                data = user.fetchall()[0]
-            except IndexError as error:
-                self.logger.error(error)
-            try:
-                if data[6] and data[6] != "None":
-                    conn_mysql, user_mysql = self.mysql.connect()
-                    user_mysql.execute("SELECT * FROM users_steam WHERE steamid = '{}'".format(data[6]))
-                    steam = user_mysql.fetchall()[0]
-
-                    user_mysql.execute("SELECT all_time_on_server FROM statistics WHERE steamid = %s", [data[6]])
-                    time = user_mysql.fetchone()
-
-                    all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid=data[6], nick=steam[1],
-                                    time=time[0], rank=steam[2], name_of_currency=name_of_currency)
-
-                    self.mysql.close_conn(conn_mysql, user_mysql)
-                else:
-                    all_data = dict(rating=data[1], money=data[2], gold_money=data[3], steamid='Не синхронизирован',
-                                    nick='Не синхронизирован', time='Не синхронизирован', rank='Не синхронизирован',
-                                    name_of_currency=name_of_currency)
-
+            if data.SID is not None and data.SID is not "None":
                 try:
-                    img_profile = Image.open("stuff/profilehalloween.jpg")
+                    steam = GmodPlayer.get(GmodPlayer.SID == data.SID)
+                except peewee.DoesNotExist:
+                    await ctx.send(embed=await functions.embeds.description(f"{user_ctx.name} ниразу не "
+                                                                            f"заходил на сервер.",
+                                                                            "После нашего переноса баз данных, "
+                                                                            "информация по игрокам была обновлена."
+                                                                            " Пожалуйста, зайдите на сервер, чтобы"
+                                                                            " пройти окончательную синхронизацию."
+                                                                            "\nПриносим свои извинения."))
+                    all_data = dict(rating=data.rating, money=data.money, gold_money=data.gold_money,
+                                    steamid='Данные отсутствуют', nick='Данные отсутствуют', time='Данные отсутствуют',
+                                    rank='Данные отсутствуют', name_of_currency=name_of_currency)
+                else:
+                    time = DriveStatistic.get(DriveStatistic.SID_id == data.SID)
+                    all_data = dict(rating=data.rating, money=data.money, gold_money=data.gold_money, steamid=data.SID,
+                                    nick=steam.nick, time=time.all_time_on_server, rank=steam.group,
+                                    name_of_currency=name_of_currency)
+            else:
+                all_data = dict(rating=data.rating, money=data.money, gold_money=data.gold_money,
+                                steamid='Не синхронизирован', nick='Не синхронизирован', time='Не синхронизирован',
+                                rank='Не синхронизирован', name_of_currency=name_of_currency)
 
-                    fileRequest = requests.get(user_ctx.avatar_url)
-                    img_avatar = Image.open(BytesIO(fileRequest.content))
+            try:
+                img_profile = Image.open("stuff/profilewinter.jpg")
 
-                    img_avatar = img_avatar.resize((300, 300), Image.ANTIALIAS)
+                fileRequest = requests.get(user_ctx.avatar_url)
+                img_avatar = Image.open(BytesIO(fileRequest.content))
 
-                    img_profile.paste(img_avatar, (120, 185))
+                img_avatar = img_avatar.resize((300, 300), Image.ANTIALIAS)
 
-                    draw = ImageDraw.Draw(img_profile)
-                    nick_font = ImageFont.truetype("stuff/OpenSans.ttf", 80)
-                    text_font = ImageFont.truetype("stuff/Arial AMU.ttf", 55)
-                    nick_steam_font = ImageFont.truetype("stuff/OpenSans.ttf", 55)
+                img_profile.paste(img_avatar, (120, 185))
 
-                    draw.text((430, 325), user_ctx.name, (255, 255, 255), font=nick_font)
+                draw = ImageDraw.Draw(img_profile)
+                nick_font = ImageFont.truetype("stuff/OpenSans.ttf", 80)
+                text_font = ImageFont.truetype("stuff/Arial AMU.ttf", 55)
+                nick_steam_font = ImageFont.truetype("stuff/OpenSans.ttf", 55)
 
-                    if str(user_ctx.status) == "online":
-                        draw.text((430, 435), "Онлайн", (255, 255, 255), font=text_font)
-                    elif str(user_ctx.status) == "idle":
-                        draw.text((430, 435), "Отошел, но при это посмотрел профиль", (255, 255, 255), font=text_font)
-                    elif str(user_ctx.status) == "dnd":
-                        draw.text((430, 435), "Не беспокоить", (255, 255, 255), font=text_font)
-                    elif str(user_ctx.status) == "offline":
-                        draw.text((430, 435), "Не в сети, но мы то знаем...", (255, 255, 255), font=text_font)
+                draw.text((430, 325), user_ctx.name, (0, 0, 0), font=nick_font)
+
+                if str(user_ctx.status) == "online":
+                    draw.text((435, 435), "Онлайн", (255, 255, 255), font=text_font)
+                elif str(user_ctx.status) == "idle":
+                    draw.text((435, 435), "Отошел, но при это посмотрел профиль", (255, 255, 255), font=text_font)
+                elif str(user_ctx.status) == "dnd":
+                    draw.text((435, 435), "Не беспокоить", (255, 255, 255), font=text_font)
+                elif str(user_ctx.status) == "offline":
+                    draw.text((435, 435), "Не в сети, но мы то знаем...", (255, 255, 255), font=text_font)
+                else:
+                    draw.text((435, 435), "Онлайн", (255, 255, 255), font=text_font)
+
+                draw.text((140, 510), f"Средства: {all_data['money']} {name_of_currency} | {all_data['gold_money']}"
+                                      f" зол. {name_of_currency}", (255, 255, 255), font=text_font)
+
+                draw.text((140, 670), f"Имя на сервере: {all_data['nick']}", (255, 255, 255), font=nick_steam_font)
+
+                draw.text((140, 600), f"Рейтинг: {all_data['rating']}", (255, 255, 255), font=text_font)
+
+                if all_data['rank'] == "user":
+                    draw.text((140, 770), "Ранг: Машинист", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "user+":
+                    draw.text((140, 770), "Ранг: Машинист+", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "admin":
+                    draw.text((140, 770), "Ранг: VIP", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "operator":
+                    draw.text((140, 770), "Ранг: Модератор", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "moderator":
+                    draw.text((140, 770), "Ранг: Ст. модератор", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "premium":
+                    draw.text((140, 770), "Ранг: Премиум", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "moderator+":
+                    draw.text((140, 770), "Ранг: Гл. модератор", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "superadmin":
+                    draw.text((140, 770), "Ранг: Администратор", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "Не синхронизирован":
+                    draw.text((140, 770), "Ранг: Не синхронизирован", (255, 255, 255), font=text_font)
+                elif all_data['rank'] == "Данные отсутствуют":
+                    draw.text((140, 770), "Ранг: Данные отсутствуют", (255, 255, 255), font=text_font)
+
+                draw.text((140, 845), f"SteamID: {all_data['steamid']}", (255, 255, 255), font=text_font)
+
+                all_time, embed = None, None
+
+                if all_data['time'] != "Не синхронизирован" and all_data['time'] != "Данные отсутствуют":
+
+                    all_time = str(datetime.timedelta(seconds=all_data['time']))
+
+                    if all_time.find("days") != -1:
+                        all_time = all_time.replace("days", "дн")
                     else:
-                        draw.text((430, 435), "Онлайн", (255, 255, 255), font=text_font)
+                        all_time = all_time.replace("day", "дн")
 
-                    draw.text((140, 510), f"Средства: {all_data['money']} {name_of_currency} | {all_data['gold_money']}"
-                                          f" зол. {name_of_currency}", (255, 255, 255), font=text_font)
-
-                    draw.text((140, 670), f"Имя на сервере: {all_data['nick']}", (255, 255, 255), font=nick_steam_font)
-
-                    draw.text((140, 600), f"Рейтинг: {all_data['rating']}", (255, 255, 255), font=text_font)
-
-                    if all_data['rank'] == "user":
-                        draw.text((140, 770), "Ранг: Машинист", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "user+":
-                        draw.text((140, 770), "Ранг: Машинист+", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "admin":
-                        draw.text((140, 770), "Ранг: VIP", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "operator":
-                        draw.text((140, 770), "Ранг: Модератор", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "moderator":
-                        draw.text((140, 770), "Ранг: Ст. модератор", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "premium":
-                        draw.text((140, 770), "Ранг: Премиум", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "moderator+":
-                        draw.text((140, 770), "Ранг: Гл. модератор", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "superadmin":
-                        draw.text((140, 770), "Ранг: Администратор", (255, 255, 255), font=text_font)
-                    elif all_data['rank'] == "Не синхронизирован":
-                        draw.text((140, 770), "Ранг: Не синхронизирован", (255, 255, 255), font=text_font)
-
-                    draw.text((140, 845), f"SteamID: {all_data['steamid']}", (255, 255, 255), font=text_font)
-
-                    all_time, embed = None, None
-
-                    if all_data['time'] != "Не синхронизирован":
-
-                        all_time = str(datetime.timedelta(seconds=all_data['time']))
-
-                        if all_time.find("days") != -1:
-                            all_time = all_time.replace("days", "дн")
-                        else:
-                            all_time = all_time.replace("day", "дн")
-
-                        if all_time.find("weeks") != -1:
-                            all_time = all_time.replace("weeks", "нед")
-                        else:
-                            all_time = all_time.replace("week", "нед")
-
-                        embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-                        embed.description = f"**__Информация для копирования:__**\n**SteamID**: {all_data['steamid']}" \
-                                            f"\n**Ник**: {all_data['nick']}" \
-                                            f"\n**Роль для изменения в базе данных**: {all_data['rank']}"
-                        embed.set_footer(text="Зачем? Чтобы было.")
-
+                    if all_time.find("weeks") != -1:
+                        all_time = all_time.replace("weeks", "нед")
                     else:
-                        all_time = "Не синхронизирован"
+                        all_time = all_time.replace("week", "нед")
 
-                    draw.text((140, 930), f"Время на сервере: {all_time}", (255, 255, 255), font=text_font)
+                    embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
+                    embed.description = f"**__Информация для копирования:__**\n**SteamID**: {all_data['steamid']}" \
+                                        f"\n**Ник**: {all_data['nick']}" \
+                                        f"\n**Роль для изменения в базе данных**: {all_data['rank']}"
+                    embed.set_footer(text="Зачем? Чтобы было.")
 
-                    img_profile.save("stuff/custom_profile.jpg")
+                else:
+                    all_time = "Данных нет"
 
-                    fileRequest.close()
-                    img_profile.close()
+                draw.text((140, 930), f"Время на сервере: {all_time}", (255, 255, 255), font=text_font)
 
-                    with open("stuff/custom_profile.jpg", "rb") as jpg:
-                        file = discord.File(jpg, filename="profile.jpg")
-                        if embed:
-                            await ctx.send(embed=embed, file=file)
-                        else:
-                            await ctx.send(file=file)
+                img_profile.save("stuff/custom_profile.jpg")
 
-                    os.remove("stuff/custom_profile.jpg")
-                except Exception as ep:
-                    self.logger.error(ep)
+                fileRequest.close()
+                img_profile.close()
 
-                # await ctx.send(embed=await functions.embeds.profile(all_data,
-                #                                                     name=user_ctx.name,
-                #                                                     icon_url=ctx.guild.icon_url,
-                #                                                     avatar_url=user_ctx.avatar_url,
-                #                                                     mention=user_ctx.mention,
-                #                                                     guild_name=ctx.guild.name))
-            except IndexError as error:
-                self.logger.error(error)
+                with open("stuff/custom_profile.jpg", "rb") as jpg:
+                    file = discord.File(jpg, filename="profile.jpg")
+                    if embed:
+                        await ctx.send(embed=embed, file=file)
+                    else:
+                        await ctx.send(file=file)
 
-            finally:
-                self.pgsql.close_conn(conn, user)
+                os.remove("stuff/custom_profile.jpg")
+            except Exception as ep:
+                self.logger.error(ep)
 
     @commands.command(name='удалить',
                       help="Данные которые нужны для использования этой команды:"
@@ -495,6 +477,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
     async def delete(self, ctx, count: int):
         if count > 100:
             await ctx.send(embed=await functions.embeds.description("Число удаляемых сообщений превышает 100",
@@ -528,66 +511,63 @@ class MainCommands(commands.Cog, name="Основные команды"):
                       brief="<префикс>рулетка",
                       description="Команда для получения ежедневной прибыли.")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.check(open_connect)
     async def roulette(self, ctx):
-        await MainCommands.profile_check(self, ctx.author)
+        await self.profile_check(ctx.author)
 
-        conn, user = self.pgsql.connect()
-
-        user.execute('SELECT "dateRol" FROM users WHERE "discordID" = {}'.format(ctx.author.id))
-        date = user.fetchone()[0]
+        user = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
 
         now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
-        if date == now.day:
+        hours = 24 - now.hour if 24 - now.hour > 10 else "0" + str(24 - now.hour)
+        minutes = 60 - now.minute if 60 - now.minute > 10 else "0" + str(60 - now.minute)
+        seconds = 60 - now.second if 60 - now.second > 10 else "0" + str(60 - now.second)
+
+        if not user.chance_roulette:
             await ctx.send(embed=await functions.embeds.description("Рулетка для Вас на сегодня уже закончена.",
-                                                                    f"Активировать команды вы смоежете через **"
-                                                                    f"{24 - now.hour}:"
-                                                                    f"{60 - now.minute}:"
-                                                                    f"{60 - now.second}**."))
+                                                                    f"Активировать команды вы смоежете через "
+                                                                    f"**{hours}:{minutes}:{seconds}**."))
             return
 
-        user.execute('UPDATE users SET "dateRol" = {} WHERE "discordID" = {}'.format(now.day, ctx.author.id))
-        conn.commit()
+        user.chance_roulette = False
+        user.save()
 
         win, thing = await functions.helper.random_win()
 
         if thing == 0:
-            user.execute('UPDATE users SET money = money + {} WHERE "discordID" = {}'.format(win, ctx.author.id))
-            conn.commit()
+            user.money = user.money + win
+            user.save()
             await ctx.send(embed=await functions.embeds.roulette(ctx, win, "реверсивок"))
         elif thing == 1:
-            user.execute('UPDATE users SET goldMoney = goldMoney + {} WHERE "discordID" = {}'.
-                         format(win, ctx.author.id))
-            conn.commit()
+            user.gold_money = user.gold_money + win
+            user.save()
             await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"зл. реверсивок"))
         else:
-            user.execute('UPDATE users SET rating = rating + {} WHERE "discordID" = {}'.
-                         format(win, ctx.author.id))
-            conn.commit()
+            user.rating = user.rating + win
+            user.save()
             await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"рейтинг"))
-
-        self.pgsql.close_conn(conn, user)
 
     @commands.command(name='топ',
                       help="Дополнительные аргументы в этой команде не нужны.",
                       brief="<префикс>топ",
                       description="Команда для получения топа игроков сервера по часам.")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.check(open_connect)
     async def top(self, ctx):
         all_data = list()
-        database, gamer = self.mysql.connect()
 
-        gamer.execute("SELECT steamid, all_time_on_server FROM statistics ORDER BY all_time_on_server DESC LIMIT 5")
-        data = gamer.fetchall()
+        data = DriveStatistic.select(DriveStatistic.SID_id, DriveStatistic.all_time_on_server).limit(10) \
+            .order_by(DriveStatistic.all_time_on_server).execute()
 
         embed = discord.Embed(colour=discord.Colour.dark_gold())
+        embed.set_author(name="ТОП 10 игроков сервера {}".format(ctx.guild.name))
 
-        all_data.append("Топ игроков сервера.")
+        for info, count in zip(data, reversed(range(10))):
+            nick = GmodPlayer.select(GmodPlayer.nick).where(GmodPlayer.SID == info.SID_id).get()
+            nick = nick.nick
 
-        for info, count in zip(data, range(0, len(data))):
-            gamer.execute("SELECT nick FROM users_steam WHERE steamid = %s;", [info[0]])
-            nick = gamer.fetchone()[0]
+            link = steam.steamid.SteamID(info.SID_id)
 
-            time = str(datetime.timedelta(seconds=info[1]))
+            time = str(datetime.timedelta(seconds=info.all_time_on_server))
             if time.find("days") != -1:
                 time = time.replace("days", "дн")
             else:
@@ -597,13 +577,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 time = time.replace("weeks", "нед")
             else:
                 time = time.replace("week", "нед")
-            all_data.append(f"{count + 1}. `{nick}` ({info[0]}) - {time}")
+            all_data.append(f"{count + 1}. [{nick}]({link.community_url}) ({info.SID_id}) - {time}")
+
+        all_data = reversed(all_data)
 
         embed.description = '\n'.join([one_man for one_man in all_data])
 
         await ctx.send(embed=embed)
-
-        self.mysql.close_conn(database, gamer)
 
     @commands.command(name='продать',
                       help="Данные которые нужны для использования этой команды:"
@@ -611,81 +591,63 @@ class MainCommands(commands.Cog, name="Основные команды"):
                       brief="<префикс>продать 20",
                       description="Команда, позволяющая продать рейтинг за 1000 обычной валюты.")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.check(open_connect)
     async def sale(self, ctx, rating: int):
-        await MainCommands.profile_check(self, ctx.author)
+        await self.profile_check(ctx.author)
 
-        conn, user = self.pgsql.connect()
+        data = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
 
-        user.execute('SELECT rating FROM users WHERE "discordID" = {}'.format(ctx.author.id))
-        real_have_rating = user.fetchone()[0]
-
-        if real_have_rating < rating or rating <= 0:
+        if data.rating < rating <= 0:
             await ctx.send(embed=await functions.embeds.description("Недостаточно рейтинга.",
                                                                     f"Вы хотите продать рейтинг, которого у Вас меньше,"
                                                                     f"чем вы ввели."))
             return
 
-        user.execute('UPDATE users SET rating = rating - {}, money = money + {} WHERE "discordID" = {}'.
-                     format(rating, rating * 1000, ctx.author.id))
-        conn.commit()
+        data.rating -= rating
+        data.money = data.money + (rating * 1000)
+        data.save()
 
         await ctx.send(embed=await functions.embeds.description("Рейтинг успешно продан.",
                                                                 f"Вы продали {rating} рейтинга за "
                                                                 f"{rating * 1000} реверсивок"))
-
-        self.pgsql.close_conn(conn, user)
 
     @commands.command(name='обмен',
                       help="Данные которые нужны для использования этой команды:"
                            "\n<revers>: Количество реверсивок на обмен.",
                       brief="<префикс>обмен 2000",
                       description="Команда, позволяющая обменять 4 обычных реверсивки на 1 золотой реверсивки.")
-    async def swap(self, ctx, revers: int):
-        await MainCommands.profile_check(self, ctx.author)
+    @commands.check(open_connect)
+    async def swap(self, ctx, money: int):
+        await self.profile_check(ctx.author)
 
-        conn, user = self.pgsql.connect()
+        data = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
 
-        user.execute('SELECT money FROM users WHERE "discordID" = {}'.format(ctx.author.id))
-        real_have_revers = int(user.fetchone()[0])
-
-        if real_have_revers < revers:
+        if data.money < money:
             await ctx.send(embed=await functions.embeds.description("Недостаточно реверсивок.",
                                                                     f"Вы хотите обменять реверсивки, которых у Вас "
                                                                     f"меньше, чем вы ввели."))
             return
 
-        user.execute('UPDATE users SET money = money - {} WHERE "discordID" = {}'.
-                     format(revers, ctx.author.id))
-        conn.commit()
-
-        user.execute('UPDATE users SET goldMoney = goldMoney + {} WHERE "discordID" = {}'.
-                     format(int(revers / 4), ctx.author.id))
-        conn.commit()
+        data.money -= money
+        data.gold_money = data.gold_money + (money // 4)
+        data.save()
 
         await ctx.send(embed=await functions.embeds.description("Реверсивки успешно обменены.",
-                                                                f"Вы обменяли {revers} реверсивок на "
-                                                                f"{int(revers / 4)} золотых реверсивок"))
-
-        self.pgsql.close_conn(conn, user)
+                                                                f"Вы обменяли {money} реверсивок на "
+                                                                f"{int(money / 4)} золотых реверсивок"))
 
     @commands.command(name="статистика",
                       help="Дополнительные аргументы в этой команде не нужны.",
                       brief="<префикс>статистика",
                       description="Команда, позволяющая посмотреть свою статистику по игре на сервере.")
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.check(open_connect)
     async def static(self, ctx):
-        await MainCommands.profile_check(self, ctx.author)
+        await self.profile_check(ctx.author)
 
-        conn, user = self.pgsql.connect()
-        database, gamer = self.mysql.connect()
-        user.execute("SELECT steamid FROM users WHERE \"discordID\" = %s", [ctx.author.id])
+        user = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
 
-        steamid, data = None, None
-
-        try:
-            steamid = user.fetchone()[0]
-        except IndexError as error:
-            self.logger.error(error)
+        if user.SID is None or user.SID is "None":
             await ctx.channel.send(embed=await functions.embeds.description("Вы не синхронизированы",
                                                                             "Чтобы просмотреть свою статистику вам "
                                                                             "нужно для начала синхронизировать свой "
@@ -695,36 +657,29 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                             .format(self.client.command_prefix[0])))
             return
 
-        if steamid != "None" and steamid:
-            try:
-                gamer.execute("SELECT * FROM statistics WHERE steamid = %s", [steamid])
-                data = gamer.fetchall()[0]
-            except IndexError:
-                await ctx.send(embed=await functions.embeds.description("Статистика не может быть прогружена.",
-                                                                        "Похоже, что статистика Вашей игры на сервере, "
-                                                                        "либо не доступна, либо есть ещё несколько "
-                                                                        "причин."))
+        try:
+            data = DriveStatistic.get(DriveStatistic.SID_id == user.SID)
+        except peewee.DoesNotExist:
+            await ctx.send(embed=await functions.embeds.description("Статистика не может быть прогружена.",
+                                                                    "Похоже, что статистика Вашей игры на сервере, "
+                                                                    "либо не доступна, либо есть ещё несколько "
+                                                                    "причин."))
 
-            labels, all_time = await create_figure(data)
+        labels, all_time = await create_figure(data)
 
-            if all_time == 0 and not labels:
-                await ctx.send(embed=await functions.embeds.description("Вы проиграли слишком мало времени",
-                                                                        "Вы проиграли на сервере меньше 10 минут."))
-                return
-
-            image = open("statistics.png", 'rb')
-            await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time}"
-                           f"\nВот список составов, в которых вы находились:\n```" +
-                           '\n'.join([x for x in labels]) + "```"
-                                                            "\nГрафик ниже предоставит вам дополнительную информацию:",
-                           file=discord.File(fp=image, filename="statistics.png"))
-            image.close()
-        else:
-            await ctx.channel.send(embed=await functions.embeds.description("Игрок не синхронизирован",
-                                                                            "Игрок с таким Discord-ом не "
-                                                                            "синхронизирован. Введите его SteamID, "
-                                                                            "чтобы забанить."))
+        if all_time == 0 and not labels:
+            await ctx.send(embed=await functions.embeds.description("Вы проиграли слишком мало времени",
+                                                                    "Вы проиграли на сервере меньше 10 минут."))
             return
+
+        image = open("statistics.png", 'rb')
+        await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time}"
+                       f"\nВот список составов, в которых вы находились:\n```" +
+                       '\n'.join([x for x in labels]) + "```"
+                                                        "\nГрафик ниже предоставит вам дополнительную информацию:",
+                       file=discord.File(fp=image, filename="statistics.png"))
+        image.close()
+
         try:
             os.remove("statistics.png")
         except PermissionError as error:
@@ -885,9 +840,9 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                     "Вы написали только заголовок, без текста."))
             return
 
-        embed.set_author(name=lines[1].replace("_", "").replace("*", "").replace("~", ""))
+        embed.set_author(name=lines[0].replace("_", "").replace("*", "").replace("~", ""))
 
-        lines = lines[2:len(lines)]
+        lines = lines[1:len(lines)]
 
         for line in lines:
             embed.description = embed.description + line + "\n"
@@ -908,21 +863,20 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
     @commands.command(name="изменить_шаблон",
                       help="Данные которые нужны для использования этой команды:"
-                           "\n<channel>: канал куда будет отправлен шаблон"
-                           "\n<заголовок>: должен быть написан на новой строке"
+                           "\n<channel>: канал где был отправлен шаблон"
+                           "\n<message_id>: должен быть написан на новой строке"
                            "\n<текст>: последуюие строки после заголовка",
-                      brief="<префикс>шаблон #основной <ЗАГОЛОВОК> <Нов. строчка БЛА БЛА БЛА...>",
-                      description="Команда, отправляющая в определенный канал шаблон, который можно использовать для "
-                                  "чего угодно.")
+                      brief="<префикс>шаблон #основной <ID, которое написано в шаблоне>",
+                      description="Команда, для изменение существующего шаблона.")
     @commands.has_permissions(mention_everyone=True)
     @commands.guild_only()
     @commands.cooldown(1, 30, commands.BucketType.user)
-    async def change_patterns(self, ctx, channel: discord.TextChannel, *, data: str):
+    async def change_patterns(self, ctx, channel: discord.TextChannel, message_id: int):
         command = ctx.message.content.split()
-        channel, message, embed, info = None, None, None, None
+        message, embed, info = None, None, None
 
         try:
-            message = await channel.fetch_message(command[1])
+            message = await channel.fetch_message(message_id)
         except discord.NotFound:
             await ctx.send("Сообщение не было найдено.")
             return
@@ -999,57 +953,6 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await info.delete()
             await new_embed.delete()
 
-    @commands.command(name="ботбан", help="<префикс>ботбан <хайлайт роли>")
-    @commands.guild_only()
-    @commands.has_permissions(administrator=True)
-    @commands.cooldown(1, 30, commands.BucketType.user)
-    async def botban(self, ctx, role: discord.Role):
-
-        conn, user = self.pgsql.connect()
-
-        user.execute("INSERT INTO botban (id) VALUES({})".format(role.id))
-        conn.commit()
-
-        await ctx.send(embed=await functions.embeds.description("Роль успешно добавлена в игнорируемые ботом.",
-                                                                "Теперь участники с этой ролью будут игнорироваться "
-                                                                "ботом во всех каналах."))
-
-        self.pgsql.close_conn(conn, user)
-
-    @commands.command(name="ботразбан", help="<префикс>ботбан <хайлайт роли>")
-    @commands.guild_only()
-    @commands.has_permissions(administrator=True)
-    @commands.cooldown(1, 30, commands.BucketType.user)
-    async def botunban(self, ctx, role: discord.Role):
-
-        conn, user = self.pgsql.connect()
-
-        user.execute("DELETE * FROM botban WHERE id = {}".format(role.id))
-        conn.commit()
-
-        await ctx.send(embed=await functions.embeds.description("Роль успешно удалена из игнорируемых ботом.",
-                                                                "Теперь участники с этой ролью НЕ будут игнорироваться "
-                                                                "ботом во всех каналах."))
-
-        self.pgsql.close_conn(conn, user)
-
-    @commands.command(name="ShutDown", help="<префикс>ShutDown")
-    @commands.has_permissions(administrator=True)
-    @commands.cooldown(1, 30, commands.BucketType.user)
-    @commands.guild_only()
-    async def botban(self, ctx, role: discord.Role):
-
-        conn, user = self.pgsql.connect()
-
-        user.execute("INSERT INTO botban (id) VALUES({})".format(role.id))
-        conn.commit()
-
-        await ctx.send(embed=await functions.embeds.description("Роль успешно добавлена в игнорируемые ботом.",
-                                                                "Теперь участники с этой ролью будут игнорироваться "
-                                                                "ботом во всех каналах."))
-
-        self.pgsql.close_conn(conn, user)
-
     @commands.command(name="сервер")
     @commands.guild_only()
     async def server_info(self, ctx):
@@ -1061,32 +964,46 @@ class MainCommands(commands.Cog, name="Основные команды"):
         await self.client.wait_until_ready()
 
     @commands.Cog.listener()
+    @commands.check(open_connect)
     async def on_reaction_add(self, reaction, user):
-
-        if not self.poll_time or user.id == self.client.user.id:
+        print(self.poll_time['choice_on'])
+        if user.id == self.client.user.id:
             return
+        print(self.poll_time['choice_on'])
+        if self.poll_time['choice_on']:
+            with open("poll_time.json", "r", encoding='utf8') as file:
+                previously = json.load(file)
 
-        with open("poll_time.json", "r", encoding='utf8') as file:
-            previously = json.load(file)
+            message = reaction.message
 
-        message = reaction.message
+            if message.id != previously['message']:
+                return
 
-        if message.id != previously['message']:
-            return
+            emoji = self.client.get_emoji(previously['emoji'])
 
-        emoji = self.client.get_emoji(previously['emoji'])
+            if str(user.id) not in previously['voices'].keys():
+                embed = message.embeds[0].to_dict()
+                embed["fields"][int(reaction.emoji[0]) - 1]['value'] += f" <:{emoji.name}:{emoji.id}>"
+                await message.edit(embed=discord.Embed.from_dict(embed))
+                await reaction.remove(user)
+                previously['voices'][user.id] = int(reaction.emoji[0])
+            else:
+                await reaction.remove(user)
 
-        if str(user.id) not in previously['voices'].keys():
-            embed = message.embeds[0].to_dict()
-            embed["fields"][int(reaction.emoji[0]) - 1]['value'] += f" <:{emoji.name}:{emoji.id}>"
-            await message.edit(embed=discord.Embed.from_dict(embed))
-            await reaction.remove(user)
-            previously['voices'][user.id] = int(reaction.emoji[0])
+            with open("poll_time.json", "w", encoding='utf8') as file:
+                json.dump(previously, file, indent=3)
+
         else:
-            await reaction.remove(user)
-
-        with open("poll_time.json", "w", encoding='utf8') as file:
-            json.dump(previously, file, indent=3)
+            servers = StatusDB.get()
+            for server in servers:
+                print(server.message_id, reaction.emoji.name, user.guild_permissions.administrator)
+                if server.message_id == reaction.message.id and reaction.emoji.name == "🇷" and \
+                        user.guild_permissions.administrator:
+                    ip = server.ip.split(":")
+                    execute((ip[0], int(ip[1])), "^J/(V8rpSC?.]:?%5eGr2o5T.x)h", "_restart")
+                elif server.message_id == reaction.message.id and reaction.emoji.name == "🇷" and \
+                        not user.guild_permissions.administrator:
+                    await reaction.message.remove_reaction(reaction.emoji, user)
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):

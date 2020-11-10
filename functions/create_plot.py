@@ -18,58 +18,40 @@ import datetime
 
 
 async def create_figure(data):
-    time = []
-    text = []
-    labels = []
-    all_time = 0
+    time, text, labels = list(), list(), list()
 
-    for i in range(1, 14):
-        all_time += int(data[i])
+    all_time = data.ema_502 + data.d_702 + data.e_703 + data.ezh_707 + data.ezh3_710 + data.mvm_717 + data.lvz_717 +\
+               data.tisu_718 + data.yauza_720 + data.sbp_722 + data.alien + data.oka_760 + data.oka_760a
 
     if all_time == 0 or all_time < 600:
         return [], 0
 
-    for i in range(1, 14):
-        if data[i] != 0:
-            if i == 1:
-                time.append(data[i])
-                labels.append("Ема-502")
-            elif i == 2:
-                time.append(data[i])
-                labels.append("81-702")
-            elif i == 3:
-                time.append(data[i])
-                labels.append("81-703")
-            elif i == 4:
-                time.append(data[i])
-                labels.append("81-707")
-            elif i == 5:
-                time.append(data[i])
-                labels.append("81-710")
-            elif i == 6:
-                time.append(data[i])
-                labels.append("МВМ")
-            elif i == 7:
-                time.append(data[i])
-                labels.append("СПБ")
-            elif i == 8:
-                time.append(data[i])
-                labels.append("81-718")
-            elif i == 9:
-                time.append(data[i])
-                labels.append("81-720")
-            elif i == 10:
-                time.append(data[i])
-                labels.append("81-722")
-            elif i == 11:
-                time.append(data[i])
-                labels.append("81-540.2")
-            elif i == 12:
-                time.append(data[i])
-                labels.append("81-760")
-            elif i == 13:
-                time.append(data[i])
-                labels.append("81-760А")
+    time.append(data.ema_502)
+    labels.append("Ема-502")
+    time.append(data.d_702)
+    labels.append("81-702")
+    time.append(data.e_703)
+    labels.append("81-703")
+    time.append(data.ezh_707)
+    labels.append("81-707")
+    time.append(data.ezh3_710)
+    labels.append("81-710")
+    time.append(data.mvm_717)
+    labels.append("МВМ")
+    time.append(data.lvz_717)
+    labels.append("СПБ")
+    time.append(data.tisu_718)
+    labels.append("81-718")
+    time.append(data.yauza_720)
+    labels.append("81-720")
+    time.append(data.sbp_722)
+    labels.append("81-722")
+    time.append(data.alien)
+    labels.append("81-540.2")
+    time.append(data.oka_760)
+    labels.append("81-760")
+    time.append(data.oka_760a)
+    labels.append("81-760А")
 
     labels = ["{} - {}".format(f"0{v / all_time:.2%}" if (v / all_time) * 100 < 9.99 else f"{v / all_time:.2%}", n)
               for n, v in zip(labels, time)]
