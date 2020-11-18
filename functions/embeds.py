@@ -6,7 +6,7 @@ import random
 
 
 async def member_join(member):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(
         colour=discord.Colour.from_rgb(52, 163, 0)
     )
@@ -22,7 +22,7 @@ async def member_join(member):
 
 
 async def member_exit(member):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"В {now.strftime('%H:%M')} с сервера {member.guild.name} ушёл {member.name}.",
                      icon_url=member.guild.icon_url)
@@ -36,7 +36,7 @@ async def member_exit(member):
 
 
 async def message_edit(before, after):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     content_before = before.content
     content_after = after.content
@@ -67,7 +67,7 @@ async def message_edit(before, after):
 
 
 async def profile(all_data, **kwargs):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
 
     all_time = all_data['time']
 
@@ -101,7 +101,7 @@ async def profile(all_data, **kwargs):
 
 
 async def delete_message(message, content):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {message.guild.name} было удаленно сообщение, "
                           f"отправленное {message.author.name}.",
@@ -119,7 +119,7 @@ async def delete_message(message, content):
 
 
 async def raw_delete_message(user, channel, id):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {channel.guild.name} было удаленно сообщение "
@@ -134,7 +134,7 @@ async def raw_delete_message(user, channel, id):
 
 
 async def raw_edit_message(message):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {message.guild.name} было изменено сообщение, "
@@ -150,7 +150,7 @@ async def raw_edit_message(message):
 
 
 async def purge(ctx, amount):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name=f"{ctx.author.name} воспользовался командой <удали> и удалил сообщения в количестве "
                           f"{amount} шт.")
@@ -160,7 +160,7 @@ async def purge(ctx, amount):
 
 
 async def roulette(ctx, win, thing):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(random.randint(0, 256),
                                                          random.randint(0, 256),
                                                          random.randint(0, 256)))
@@ -277,7 +277,8 @@ async def server_info(guild):
     embed.set_author(name="{0.name}".format(guild))
     embed.add_field(name="Регион: ", value=str(guild.region).title())
     embed.add_field(name="ID гильдии: ", value=guild.id)
-    embed.add_field(name="Владелец: ", value=guild.owner.mention)
+    embed.add_field(name="Системный канал: ", value="Не назначени" if not guild.system_channel
+    else guild.system_channel.mention)
     embed.add_field(name="Количество участиков: ", value=guild.member_count)
     embed.add_field(name="Уровень верификации: ", value=guild.verification_level)
     embed.add_field(name="Роль по умолчанию: ", value=guild.default_role)
@@ -289,7 +290,7 @@ async def server_info(guild):
 
 
 async def invest_help(ctx):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Некоторая информация о инвистициях и банке.",
                      icon_url=ctx.guild.icon_url)
@@ -329,7 +330,7 @@ async def invest_help(ctx):
 
 
 async def bank_info(ctx, all_amount, course, name_of_bank):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="{} банк".format(name_of_bank.title()))
     embed.add_field(name="Директор банка: ", value=ctx.guild.owner.mention, inline=False)
@@ -340,7 +341,7 @@ async def bank_info(ctx, all_amount, course, name_of_bank):
 
 
 async def bill(ctx, info, bank):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Счёт №{}".format(info[0]))
     embed.add_field(name="Нынешнее состояние: ", value=f"{str(info[2])} NEO", inline=False)
@@ -351,7 +352,7 @@ async def bill(ctx, info, bank):
 
 
 async def invests_status(ctx, info):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Статус компаний")
     embed.add_field(name="Первая компания: ",
@@ -374,7 +375,7 @@ async def invests_status(ctx, info):
 
 
 async def share(ctx, info):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Приобретенные акции")
     try:
@@ -408,7 +409,7 @@ async def share(ctx, info):
 
 
 async def poll(ctx, quest, answers):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
 
     simbols = [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":ten:"]
     things = list()
@@ -424,7 +425,7 @@ async def poll(ctx, quest, answers):
 
 
 async def poll_time(ctx, quest, time, answers, emoji):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
     time_end = datetime.datetime.now(datetime.timezone(datetime.timedelta(minutes=time + 180)))
 
     simbols = [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":ten:"]
@@ -447,7 +448,7 @@ async def poll_time(ctx, quest, time, answers, emoji):
 
 
 async def all_members(ctx, all_data):
-    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+    now = datetime.datetime.now()
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
     embed.set_author(name="Участники РП-сессии")
@@ -474,7 +475,6 @@ async def all_members(ctx, all_data):
             drivers.append([int(data[3]), data[0]])
 
     drivers = sorted(drivers, key=lambda driver: driver[0])
-    print(drivers)
 
     for i in range(0, len(drivers)):
         things.append(f"`Машинист` **__{drivers[i][1]}__**. Номер маршрута `{drivers[i][0]}`")
@@ -484,7 +484,7 @@ async def all_members(ctx, all_data):
     return embed
 
 # async def achievement(member, achievement, guild):
-#     now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+#     now = datetime.datetime.now()
 #
 #     embed = discord.Embed(colour=discord.Colour.from_rgb(0, 33, 55))
 #

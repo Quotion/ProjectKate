@@ -25,6 +25,7 @@ from functions.create_plot import create_figure
 class MainCommands(commands.Cog, name="Основные команды"):
 
     def __init__(self, client):
+        now = datetime.datetime.now()
         self.poll_time = dict()
         self.client = client
 
@@ -36,17 +37,17 @@ class MainCommands(commands.Cog, name="Основные команды"):
         self.poll_time['choice_on'] = False
         self.poll_time['message'] = None
 
+        self.now_day = now.day
+
         self.generate_promo.start()
 
     async def open_connect(self):
         try:
             db.connect()
-            db.execute_sql("SET NAMES 'utf8'")
             return True
         except peewee.OperationalError:
             db.close()
             db.connect()
-            db.execute_sql("SET NAMES 'utf8'")
             return True
 
     @staticmethod
@@ -336,7 +337,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                             "быть просмотрен в угоду того, что не был "
                                                                             "найден на этом сервере."))
                     return
-                await MainCommands.profile_check(self, client)
+                await self.profile_check(client)
                 data = UserDiscord.get(UserDiscord.discord_id == client.id)
                 user_ctx = client
             elif len(ctx.message.content.split()) == 1:
@@ -358,10 +359,17 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                     steamid='Данные отсутствуют', nick='Данные отсутствуют', time='Данные отсутствуют',
                                     rank='Данные отсутствуют', name_of_currency=name_of_currency)
                 else:
-                    time = DriveStatistic.get(DriveStatistic.SID_id == data.SID)
-                    all_data = dict(rating=data.rating, money=data.money, gold_money=data.gold_money, steamid=data.SID,
-                                    nick=steam.nick, time=time.all_time_on_server, rank=steam.group,
-                                    name_of_currency=name_of_currency)
+                    try:
+                        time = AllTimePlay.get(AllTimePlay.SID_id == data.SID)
+                        all_data = dict(rating=data.rating, money=data.money, gold_money=data.gold_money,
+                                        steamid=data.SID,
+                                        nick=steam.nick, time=time.all_time_on_server, rank=steam.group,
+                                        name_of_currency=name_of_currency)
+                    except peewee.DoesNotExist:
+                        all_data = dict(rating=data.rating, money=data.money, gold_money=data.gold_money,
+                                        steamid=data.SID,
+                                        nick=steam.nick, time=0, rank=steam.group,
+                                        name_of_currency=name_of_currency)
             else:
                 all_data = dict(rating=data.rating, money=data.money, gold_money=data.gold_money,
                                 steamid='Не синхронизирован', nick='Не синхронизирован', time='Не синхронизирован',
@@ -506,6 +514,21 @@ class MainCommands(commands.Cog, name="Основные команды"):
         msgs_deleted.close()
         os.remove("purgedeleted.txt")
 
+    @commands.command(name='сброс_рулетки',
+                      help="Дополнительные аргументы в этой команде не нужны.",
+                      brief="<префикс>сброс_рулетки",
+                      description="Команда для сброса даты рулетка.")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
+    async def drop_roulette(self, ctx):
+        query = UserDiscord.update({UserDiscord.chance_roulette: True}).where(not UserDiscord.chance_roulette)
+        query.execute()
+
+        await ctx.send(embed=await functions.embeds.description("Сброс рулетка выполнен успешно!",
+                                                                "Сброс рулетка выполнен успешно!"))
+
     @commands.command(name='рулетка',
                       help="Дополнительные аргументы в этой команде не нужны.",
                       brief="<префикс>рулетка",
@@ -515,9 +538,14 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def roulette(self, ctx):
         await self.profile_check(ctx.author)
 
+        now = datetime.datetime.now()
+        if now.day > self.now_day:
+            query = UserDiscord.update({UserDiscord.chance_roulette: True}).where(not UserDiscord.chance_roulette)
+            query.execute()
+            self.now_day = now.day
+
         user = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
 
-        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
         hours = 24 - now.hour if 24 - now.hour > 10 else "0" + str(24 - now.hour)
         minutes = 60 - now.minute if 60 - now.minute > 10 else "0" + str(60 - now.minute)
         seconds = 60 - now.second if 60 - now.second > 10 else "0" + str(60 - now.second)
@@ -555,13 +583,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def top(self, ctx):
         all_data = list()
 
-        data = DriveStatistic.select(DriveStatistic.SID_id, DriveStatistic.all_time_on_server).limit(10) \
-            .order_by(DriveStatistic.all_time_on_server).execute()
+        data = AllTimePlay.select(AllTimePlay.SID_id, AllTimePlay.all_time_on_server).limit(10).order_by(
+            AllTimePlay.all_time_on_server.desc()).execute()
 
         embed = discord.Embed(colour=discord.Colour.dark_gold())
         embed.set_author(name="ТОП 10 игроков сервера {}".format(ctx.guild.name))
 
-        for info, count in zip(data, reversed(range(10))):
+        for info, count in zip(data, range(10)):
             nick = GmodPlayer.select(GmodPlayer.nick).where(GmodPlayer.SID == info.SID_id).get()
             nick = nick.nick
 
@@ -578,8 +606,6 @@ class MainCommands(commands.Cog, name="Основные команды"):
             else:
                 time = time.replace("week", "нед")
             all_data.append(f"{count + 1}. [{nick}]({link.community_url}) ({info.SID_id}) - {time}")
-
-        all_data = reversed(all_data)
 
         embed.description = '\n'.join([one_man for one_man in all_data])
 
@@ -643,6 +669,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.check(open_connect)
     async def static(self, ctx):
+        return
         await self.profile_check(ctx.author)
 
         user = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
@@ -658,7 +685,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             return
 
         try:
-            data = DriveStatistic.get(DriveStatistic.SID_id == user.SID)
+            data = StatisticsDriving.get(StatisticsDriving.SID_id == user.SID)
         except peewee.DoesNotExist:
             await ctx.send(embed=await functions.embeds.description("Статистика не может быть прогружена.",
                                                                     "Похоже, что статистика Вашей игры на сервере, "
@@ -675,8 +702,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         image = open("statistics.png", 'rb')
         await ctx.send(f"{ctx.author.mention}, вы провели за пультом {all_time}"
                        f"\nВот список составов, в которых вы находились:\n```" +
-                       '\n'.join([x for x in labels]) + "```"
-                                                        "\nГрафик ниже предоставит вам дополнительную информацию:",
+                       '\n'.join([x for x in labels]) + "```\nГрафик ниже предоставит вам дополнительную информацию:",
                        file=discord.File(fp=image, filename="statistics.png"))
         image.close()
 
@@ -699,7 +725,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         message = data.split()
         answers = data.split("+")
         quest = ""
-        for i in range(1, len(message)):
+        for i in range(0, len(message)):
             if message[i].find("+") == -1:
                 quest += message[i] + " "
             else:
@@ -714,7 +740,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
         answers = answers[1:len(answers)]
         if len(answers) > 9 or len(answers) < 1:
             await ctx.channel.send(
-                embed=await functions.embeds.description(f"Ответ очень {'мало' if len(answers) < 1 else 'много'}.",
+                embed=await functions.embeds.description(f"Ответов очень {'мало' if len(answers) < 1 else 'много'}.",
                                                          f"Голосование не может быть создано, потому что количетсво "
                                                          f"ответов {'меньше 1' if len(answers) < 1 else 'больше 9'}."))
             return
@@ -800,7 +826,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         embed = msg.embeds[0].to_dict()
 
-        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+        now = datetime.datetime.now()
 
         pprint(embed)
 
@@ -828,7 +854,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.cooldown(1, 30, commands.BucketType.user)
     async def patterns(self, ctx, channel: discord.TextChannel, *, data: str):
 
-        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+        now = datetime.datetime.now()
 
         embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
         embed.description = ""
@@ -942,7 +968,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             for line in text:
                 embed.description = embed.description + line + "\n"
 
-            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+            now = datetime.datetime.now()
 
             embed.set_footer(text=f"{ctx.author.name} | ID:{command[1]} | Изменено {now.strftime('%d.%m.%Y')} "
                                   f"в {now.strftime('%H.%M.%S')}")
@@ -994,7 +1020,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 json.dump(previously, file, indent=3)
 
         else:
-            servers = StatusDB.get()
+            servers = StatusGMS.get()
             for server in servers:
                 print(server.message_id, reaction.emoji.name, user.guild_permissions.administrator)
                 if server.message_id == reaction.message.id and reaction.emoji.name == "🇷" and \

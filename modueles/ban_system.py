@@ -22,12 +22,10 @@ class Ban(commands.Cog, name="Система банов"):
     async def open_connect(self):
         try:
             db.connect()
-            db.execute_sql("SET NAMES 'utf8'")
             return True
         except peewee.OperationalError:
             db.close()
             db.connect()
-            db.execute_sql("SET NAMES 'utf8'")
             return True
 
     @commands.check(open_connect)
@@ -153,7 +151,7 @@ class Ban(commands.Cog, name="Система банов"):
     @commands.has_permissions(administrator=True)
     @commands.check(open_connect)
     async def unban(self, ctx, client: str):
-        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+        now = datetime.datetime.now()
 
         client = await self.check_client(ctx, client)
 
@@ -262,7 +260,7 @@ class Ban(commands.Cog, name="Система банов"):
                                                                             f"играл на сервере."))
             return
 
-        if (user.SID is None or user.SID is "None") and not player:
+        if user.SID is None or user.SID is "None":
             user.SID = steamid
             user.save()
             await ctx.channel.send(embed=await functions.embeds.description("SteamID успешно синхронизирован.",
@@ -334,11 +332,11 @@ class Ban(commands.Cog, name="Система банов"):
         if not data_gamer:
             return
 
-        data_gamer.group = rank
-        data_gamer.save()
+        data_gamer.SID.group = rank
+        data_gamer.SID.save()
         self.logger.info("User with SteamID {} successfully changed rank.".format(data_gamer.SID))
         await ctx.channel.send(embed=await functions.embeds.description("Ранг игрока был изменен.",
-                                                                        f"Ранг игрока **{data_gamer.nick}** был изменен "
+                                                                        f"Ранг игрока **{data_gamer.SID.nick}** был изменен "
                                                                         f"на {rank}."))
 
     # @commands.command(

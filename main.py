@@ -4,8 +4,6 @@ from discord.ext.commands import Bot
 from modueles.status import Status
 from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
-from modueles.rprequest import RPrequest
-from modueles.orders import Orders
 from models import *
 import functions.embeds
 import datetime
@@ -13,6 +11,7 @@ import discord
 import logging
 import os
 import io
+
 
 client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'])
 
@@ -32,11 +31,11 @@ class Katherine(object):
                           UserDiscord,
                           RoleDiscord,
                           RoleUser,
-                          BanRole,
                           Promocode,
                           StatusGMS,
                           DonateUser,
-                          DriveStatistic,
+                          AllTimePlay,
+                          StatisticsDriving,
                           RolesGmod])
 
         with open("stuff/words", 'r', encoding='utf8') as file:
@@ -48,7 +47,6 @@ class Katherine(object):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
-        self.client.add_cog(Orders(client))
 
     def on_ready(self):
         @self.client.event
@@ -141,6 +139,19 @@ class Katherine(object):
             if msg_after.content == msg_before.content or msg_before.author.id == self.client.user.id:
                 return
 
+            for word in self.words:
+                if word in [letters.lower() for letters in msg_after.content.split()] and (
+                        msg_after.channel.name == "основной"
+                        or msg_after.channel.name == "бот"):
+                    await msg_after.channel.send(embed=
+                                                 await functions.embeds.description("Использование запрещенных слов.",
+                                                                                    "Пожалуйста воздержитесь от "
+                                                                                    "использования **запрещенных слов в"
+                                                                                    " ваших предложениях**.\nЗапрет "
+                                                                                    "распростроянется только на канал "
+                                                                                    "#основной и #бот"))
+                    await msg_after.delete()
+
             channel = discord.utils.get(self.client.get_all_channels(), name='око')
             if not channel:
                 pass
@@ -225,7 +236,7 @@ class Katherine(object):
         @self.client.event
         async def on_member_update(before_member, after_member):
             channel = discord.utils.get(self.client.get_all_channels(), name='око')
-            now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+            now = datetime.datetime.now()
 
             if before_member.roles != after_member.roles:
                 embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
@@ -253,14 +264,16 @@ class Katherine(object):
                 if role.id == 661271145089335306:
                     return
             for word in self.words:
-                if word in message.content.split():
+                if word in [letters.lower() for letters in message.content.split()] and (
+                        message.channel.name == "основной"
+                        or message.channel.name == "бот"):
                     await message.channel.send(embed=
                                                await functions.embeds.description("Использование запрещенных слов.",
                                                                                   "Пожалуйста воздержитесь от "
                                                                                   "использования **запрещенных слов в "
                                                                                   "ваших предложениях**.\nЗапрет "
                                                                                   "распростроянется только на канал "
-                                                                                  "#основной"))
+                                                                                  "#основной и #бот"))
                     await message.delete()
 
             if message.author.id == self.client.user.id:

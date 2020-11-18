@@ -28,12 +28,10 @@ class Status(commands.Cog, name="Статус серверов"):
     async def open_connect(self):
         try:
             db.connect()
-            db.execute_sql("SET NAMES 'utf8'")
             return True
         except peewee.OperationalError:
             db.close()
             db.connect()
-            db.execute_sql("SET NAMES 'utf8'")
             return True
 
     @staticmethod
@@ -75,8 +73,8 @@ class Status(commands.Cog, name="Статус серверов"):
         return servers_info
 
     @tasks.loop(seconds=60.0)
-    @commands.check(open_connect)
     async def update(self):
+        await self.open_connect()
         servers = None
 
         channel = discord.utils.get(self.client.get_all_channels(), name='статус-серверов')
@@ -114,31 +112,31 @@ class Status(commands.Cog, name="Статус серверов"):
                 server.save()
                 ply = ['*Загружается на сервер.*'] * player_count
                 for i, player in zip(range(len(players)), players):
-                    time = str(int(datetime.datetime.fromtimestamp(player["duration"]).strftime("%H"))) + \
-                           datetime.datetime.fromtimestamp(player["duration"]).strftime(":%M:%S")
-                    steamid, checked_ply, link = None, None, None
-
+                    time = str(datetime.datetime.utcfromtimestamp(int(player["duration"])).strftime("%H:%M:%S"))
+                    SID, gmod, checked_ply, member, link = None, None, None, None, None
                     try:
-                        steamid = GmodPlayer.select(GmodPlayer.SID).where(nick=player["name"]).get()
+                        gmod = GmodPlayer.get(GmodPlayer.nick == player["name"])
                     except peewee.DoesNotExist:
                         pass
 
-                    if steamid is not None:
+                    if gmod is not None:
                         try:
-                            checked_ply = UserDiscord.select(UserDiscord.discord_id).where(SID=steamid).get()
-                            member = await message.guild.fetch_member(int(checked_ply))
+                            checked_ply = UserDiscord.get(UserDiscord.SID == gmod.SID)
+                            member = await message.guild.fetch_member(checked_ply.discord_id)
                         except peewee.DoesNotExist:
                             pass
+                        except discord.NotFound:
+                            pass
 
-                        SID = SteamID(steamid)
+                        SID = SteamID(gmod.SID)
                         link = SID.community_url
 
-                    if steamid is not None and checked_ply is not None:
-                        ply[i] = f"{i + 1}. {member.mention} [{steamid}]({link}) **{time}**"
-                    elif steamid is not None:
-                        ply[i] = f"{i + 1}. [{player['name']}]({link}) `{steamid}` **{time}**"
-                    elif steamid is None and player["name"] is not '':
-                        ply[i] = f"{i + 1}. [{player['name']}]({link}) `ДАННЫЕ ОТСУТСТВУЮТ`"
+                    if SID is not None and checked_ply is not None and member is not None:
+                        ply[i] = f"{i + 1}. {member.mention} | [{SID.as_steam2_zero}]({link}) | **{time}**"
+                    elif SID is not None:
+                        ply[i] = f"{i + 1}. [{player['name']}]({link}) | `{SID.as_steam2_zero}` | **{time}**"
+                    elif SID is None and player["name"] is not '':
+                        ply[i] = f"{i + 1}. [{player['name']}]({link}) | `ДАННЫЕ ОТСУТСТВУЮТ`"
 
                 title = discord.Embed(colour=discord.Colour.dark_green(),
                                       url=collection,
@@ -166,12 +164,12 @@ class Status(commands.Cog, name="Статус серверов"):
                                 inline=False)
                 title.set_thumbnail(
                     url='https://poolwiki.peoplefone.com/images/6/66/Green_Tick.png')
-                now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+                now = datetime.datetime.now()
                 title.set_footer(text=f'Последнее обновление данных: {str(now.strftime("%d.%m.%y %H:%M:%S "))}')
                 await message.edit(embed=title)
             else:
                 name = server.name
-                now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=3)))
+                now = datetime.datetime.now()
                 embed = discord.Embed(colour=discord.Colour.dark_red(),
                                       url=collection,
                                       title=f'Коллекция сервера')
