@@ -5,6 +5,7 @@
 /invests.json
 /modueles/credentials.json
 /modueles/spreadsheetid
+/__pycache__/
 
 /funtions/__pycache__/
 /functions/info
