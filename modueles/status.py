@@ -25,7 +25,7 @@ class Status(commands.Cog, name="Статус серверов"):
 
         self.update.start()
 
-    async def open_connect(self):
+    async def open_connect(ctx):
         try:
             db.connect()
             return True
@@ -34,20 +34,35 @@ class Status(commands.Cog, name="Статус серверов"):
             db.connect()
             return True
 
+    async def is_creator(ctx):
+        return ctx.author.id == 349648699976318987 or discord.Permissions.administrator in ctx.author.top_role().permissions
+
     @staticmethod
     def __get_info(server_address):
         try:
-            data = game_servers.a2s_info(server_address, timeout=5)
-            players = game_servers.a2s_players(server_address, timeout=5)
-            ping = data['_ping']
-            name = data['name']
-            map_server = data['map']
-            player_count = data['players']
-            max_players = data['max_players']
+            data = game_servers.a2s_info(server_address, timeout=2)
+            players = game_servers.a2s_players(server_address, timeout=2)
         except Exception:
-            return 0, 0, 0, 0, 0, 0, False
+            try:
+                data = game_servers.a2s_info(server_address, timeout=2)
+                players = game_servers.a2s_players(server_address, timeout=2)
+            except Exception:
+                return 0, 0, 0, 0, 0, 0, False
+            else:
+                
+                ping = data['_ping']
+                name = data['name']
+                map_server = data['map']
+                player_count = data['players']
+                max_players = data['max_players']
+                return ping, name, player_count, players, max_players, map_server, True
         else:
-            return ping, name, player_count, players, max_players, map_server, True
+                ping = data['_ping']
+                name = data['name']
+                map_server = data['map']
+                player_count = data['players']
+                max_players = data['max_players']
+                return ping, name, player_count, players, max_players, map_server, True
 
     async def __get_all_servers_ip(self, status):
         servers_info = list()
@@ -132,9 +147,9 @@ class Status(commands.Cog, name="Статус серверов"):
                         link = SID.community_url
 
                     if SID is not None and checked_ply is not None and member is not None:
-                        ply[i] = f"{i + 1}. {member.mention} | [{SID.as_steam2_zero}]({link}) | **{time}**"
+                        ply[i] = f"{i + 1}. {member.mention} | **{time}**"
                     elif SID is not None:
-                        ply[i] = f"{i + 1}. [{player['name']}]({link}) | `{SID.as_steam2_zero}` | **{time}**"
+                        ply[i] = f"{i + 1}. [{player['name']}]({link}) | **{time}**"
                     elif SID is None and player["name"] is not '':
                         ply[i] = f"{i + 1}. [{player['name']}]({link}) | `ДАННЫЕ ОТСУТСТВУЮТ`"
 
@@ -187,8 +202,8 @@ class Status(commands.Cog, name="Статус серверов"):
         brief="<префикс>ip <ip:port> <коллекция workshop>")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
-    @commands.has_permissions(administrator=True)
     @commands.check(open_connect)
+    @commands.check(is_creator)
     async def ip(self, ctx, ip: str, collection: str):
         address = ip.split(":")
 

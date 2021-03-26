@@ -54,7 +54,7 @@ class Ban(commands.Cog, name="Система банов"):
                                                                                 "сервере."))
                 return None
             else:
-                return client
+                return client 
 
     @staticmethod
     @commands.check(open_connect)
@@ -76,23 +76,19 @@ class Ban(commands.Cog, name="Система банов"):
                                                                                 "чтобы забанить."))
                 return None
 
-            data_gamer = GmodBan.get(GmodBan.SID == user.SID)
+            data_gamer = GmodBan.select().where(GmodBan.SID == user.SID).order_by(GmodBan.server)
             if not data_gamer:
-                await ctx.channel.send(
-                    embed=await functions.embeds.description("Игрок ни разу не заходил на сервер",
-                                                             "Игрок с таким серверов ни разу не "
-                                                             "заходил на сервер."))
+                try:
+                    for i in range(1, self.servers + 1):
+                        GmodBan.insert(SID=client, server=i)
+                
+                    data_gamer = GmodBan.select().where(GmodBan.SID == user.SID).order_by(GmodBan.server)
+                except:
+                    await ctx.channel.send(embed=await functions.embeds.description("Игрок ни разу не был на сервере",
+                                                                                "Игрок с таким Discord-ом не "
+                                                                                "был найден в БД сервера."))
                 return None
-            else:
-                return data_gamer
 
-        data_gamer = GmodBan.get(GmodBan.SID == client)
-        if not data_gamer:
-            await ctx.channel.send(embed=await functions.embeds.description("Игрок ни разу не заходил на сервер",
-                                                                            "Игрок с таким серверов ни разу не "
-                                                                            "заходил на ."))
-            return None
-        else:
             return data_gamer
 
     @commands.command(
@@ -125,21 +121,22 @@ class Ban(commands.Cog, name="Система банов"):
         if not data_gamer:
             return
 
-        if data_gamer.ban == 0 and data_gamer.ban_admin is '':
-            data_gamer.ban_reason = reason
-            data_gamer.ban_admin = ctx.author.name
-            data_gamer.ban_date = time_ban
-            data_gamer.unban_date = time_unban
-            data_gamer.save()
-            self.logger.info(f'{ctx.author.name} banned {ctx.author.name} for {(time_unban - time_ban) // 60} '
-                             f'minutes, reason: {reason}.')
-            await ctx.channel.send(embed=await functions.embeds.ban_message(data_gamer))
-        else:
-            await ctx.channel.send(embed=await functions.embeds.description("Игрок уже забанен",
-                                                                            "Игрок **{}({})** уже забанен по причине `"
-                                                                            "{}`".format(data_gamer.SID.nick,
-                                                                                         data_gamer.SID_id,
-                                                                                         data_gamer.ban_reason)))
+        user = None
+
+        for column in data_gamer:
+            if column.ban == 0 and column.ban_admin is '':
+                column.ban_reason = reason
+                column.ban_admin = ctx.author.name
+                column.ban_date = time_ban
+                column.unban_date = time_unban
+                column.save()
+                await ctx.channel.send(embed=await functions.embeds.ban_message(column))
+            else:
+                await ctx.channel.send(embed=await functions.embeds.description("Игрок уже забанен на {} сервере.".format(column.server),
+                                                                                "Игрок **{}({})** уже забанен по причине `"
+                                                                                "{}`".format(column.SID.nick,
+                                                                                            column.SID_id,
+                                                                                            column.ban_reason)))
 
     @commands.command(
         name='разбан',
@@ -162,24 +159,26 @@ class Ban(commands.Cog, name="Система банов"):
 
         if not data_gamer:
             return
-        if data_gamer.ban > 0 and data_gamer.ban_reason is not '':
-            data_gamer.ban_reason = None
-            data_gamer.ban_admin = None
-            data_gamer.ban_date = None
-            data_gamer.unban_date = None
-            data_gamer.save()
-            await ctx.channel.send(embed=await functions.embeds.description(f"{data_gamer.SID.nick} был разбанен.",
-                                                                            f"Игрок **{data_gamer.SID.nick}"
-                                                                            f"({data_gamer.SID_id}**) разбанен.\n"
-                                                                            f"Дата разбана: "
-                                                                            f"({now.strftime('%H:%M %d.%m.%Y')})\n"
-                                                                            f"Разбанил: {ctx.author.mention}", ))
-            self.logger.info("User with SteamID {} successfully unbaned.".format(client))
-        else:
-            await ctx.channel.send(embed=await functions.embeds.description("Игрок не находится в бане.",
-                                                                            "Игрок **{}({})** не был забанен".format(
-                                                                                data_gamer.SID.nick,
-                                                                                data_gamer.SID_id)))
+
+        for column in data_gamer:
+            if column.ban > 0 and column.ban_reason is not '':
+                column.ban_reason = None
+                column.ban_admin = None
+                column.ban_date = None
+                column.unban_date = None
+                column.save()
+                await ctx.channel.send(embed=await functions.embeds.description(f"{data_gamer.SID.nick} был разбанен на {column.server} сервере.",
+                                                                                f"Игрок **{data_gamer.SID.nick}"
+                                                                                f"({data_gamer.SID_id}**) разбанен.\n"
+                                                                                f"Дата разбана: "
+                                                                                f"({now.strftime('%H:%M %d.%m.%Y')})\n"
+                                                                                f"Разбанил: {ctx.author.mention}", ))
+            else:
+                await ctx.channel.send(embed=await functions.embeds.description("Игрок уже забанен на {} сервере.".format(column.server),
+                                                                                "Игрок **{}({})** уже забанен по причине `"
+                                                                                "{}`".format(column.SID.nick,
+                                                                                            column.SID_id,
+                                                                                            column.ban_reason)))
 
     @commands.command(
         name='проверь',
@@ -199,15 +198,18 @@ class Ban(commands.Cog, name="Система банов"):
 
         data_gamer = await self.get_data_gamer(ctx, client)
 
+
         if not data_gamer:
             return
 
-        if data_gamer.ban == 0 and (not data_gamer.ban_admin or data_gamer.ban_admin == "None"):
+        user = data_gamer[0]
+
+        if user.ban == 0 and (not user.ban_admin or user.ban_admin == "None"):
             await ctx.channel.send(embed=await functions.embeds.description("Игрок не забнен",
-                                                                            f"Игрок (**{data_gamer.SID_id}**) "
+                                                                            f"Игрок (**{user.SID_id}**) "
                                                                             f"не забанен."))
         else:
-            await ctx.channel.send(embed=await functions.embeds.discord_check_ban(data_gamer))
+            await ctx.channel.send(embed=await functions.embeds.discord_check_ban(user))
 
     @commands.command(name='синхр',
                       help="Данные которые нужны для использования этой команды:"

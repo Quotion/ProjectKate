@@ -3,6 +3,7 @@ import datetime
 import io
 import time
 import random
+import requests
 
 
 async def member_join(member):
@@ -50,13 +51,15 @@ async def message_edit(before, after):
         check = True
 
     if check:
-        with io.open("changelog.txt", "w", encoding='utf8') as file:
+        with io.open("stuff/changelog.txt", "w", encoding='utf8') as file:
             file.write("Сообщение до:\n" + before.content +
                        "\n\n\n\n" +
                        "Сообщение после:\n" + after.content)
 
-    embed.set_author(name=f"В {now.strftime('%H:%M')} было изменено сообщение, отправленное {before.author.name}.",
-                     icon_url=before.guild.icon_url)
+    embed.set_author(name="Изменение в контексте сообщения.", icon_url=before.guild.icon_url)
+    embed.add_field(name="Время изменения", value=now.strftime('%H:%M'))
+    embed.add_field(name="Канал", value=before.channel.mention)
+    embed.add_field(name="Пользователь", value=before.author.name)
     embed.add_field(name='Сообщение до и после:',
                     value=f'**До**: {content_before}'
                           f'\n**После**: {content_after}',
@@ -103,16 +106,14 @@ async def profile(all_data, **kwargs):
 async def delete_message(message, content):
     now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {message.guild.name} было удаленно сообщение, "
-                          f"отправленное {message.author.name}.",
-                     icon_url=message.guild.icon_url)
-    embed.add_field(name='Текст сообщения:',
-                    value=content,
-                    inline=False)
+    embed.set_author(name="Удаление сообщения из канала.", icon_url=message.guild.icon_url)
+    embed.add_field(name="Время изменения", value=now.strftime('%H:%M'))
+    embed.add_field(name="Канал", value=message.channel.mention)
+    embed.add_field(name="Пользователь", value=message.author.name)
+    embed.add_field(name='Текст сообщения:', value=content, inline=False)
     if message.attachments:
-        embed.add_field(name='Вложение:',
-                        value=message.attachments[0].proxy_url,
-                        inline=False)
+        if requests.head(message.attachments[0].proxy_url) == 200:
+            embed.add_field(name='Вложение:', value=message.attachments[0].proxy_url, inline=False)
     embed.set_thumbnail(url=message.author.avatar_url)
     embed.set_footer(text=f"{message.author.name} | {message.channel.name} | {now.strftime('%d.%m.%Y')}")
     return embed
@@ -137,9 +138,10 @@ async def raw_edit_message(message):
     now = datetime.datetime.now()
 
     embed = discord.Embed(colour=discord.Colour.from_rgb(54, 57, 63))
-    embed.set_author(name=f"В {now.strftime('%H:%M')} на сервере {message.guild.name} было изменено сообщение, "
-                          f"отправленное в канале {message.channel.name}.",
-                     icon_url=message.guild.icon_url)
+    embed.set_author(name="Изменение в контексте сообщения.", icon_url=message.guild.icon_url)
+    embed.add_field(name="Время изменения", value=now.strftime('%H:%M'))
+    embed.add_field(name="Канал", value=message.channel.mention)
+    embed.add_field(name="Пользователь", value=message.author.name)
     embed.add_field(name='Информация:',
                     value=f'**Текст сообщения:**`{message.content[0:100] + "..."}`'
                           f'\n**ID сообщения:**`{message.id}`',
@@ -164,7 +166,11 @@ async def roulette(ctx, win, thing):
     embed = discord.Embed(colour=discord.Colour.from_rgb(random.randint(0, 256),
                                                          random.randint(0, 256),
                                                          random.randint(0, 256)))
-    embed.set_author(name=f"Сегодня ваш выигрыш составляет {win} {thing} ")
+    embed.set_author(name=f"Рулетка активировона. {win} {thing}.")
+    embed.description = f"Сегодня ваш куш составил **{win} {thing}**. " \
+                        f"Но мы уверены, что в следующий раз вы получите больше!\n\n" \
+                        f"Ваш Sunrails Metrostroi."
+    embed.set_thumbnail(url=ctx.guild.icon_url)
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
 
@@ -198,15 +204,41 @@ async def description(title, content):
     return embed
 
 
-async def promocode(title, content, create_admin):
+async def promocode(title, content, create_admin, guild_icon):
     embed = discord.Embed(
         colour=discord.Colour.from_rgb(random.randint(0, 256),
                                        random.randint(0, 256),
                                        random.randint(0, 256))
     )
+
+    gif_choice = [
+        "https://i.gifer.com/jdI.gif",
+        "https://i.gifer.com/1Fa4.gif",
+        "https://i.gifer.com/3743.gif",
+        "https://i.gifer.com/6mb.gif",
+        "https://www.neizvestniy-geniy.ru/images/works/photo/2012/01/507550_1.gif",
+        "https://i.gifer.com/4un.gif"
+    ]
+
+    gif = random.choice(gif_choice)
+
     embed.set_author(name=title)
     embed.description = content
-    embed.set_footer(text="Создано Администрацией Sunrise Project" if create_admin else "Создано автоматически")
+    embed.set_image(url=gif)
+    embed.set_thumbnail(url=guild_icon)
+    embed.set_footer(text="Создано Администрацией Sunrails Metrostroi" if create_admin else "Создано автоматически")
+    return embed
+
+
+async def use_promo(title, content, guild_icon):
+    embed = discord.Embed(colour=discord.Colour.from_rgb(240, 240, 240))
+
+    embed.set_author(name=title)
+    embed.description = content
+    embed.set_image(url="https://i.gifer.com/3zt8.gif")
+    embed.set_thumbnail(url=guild_icon)
+    embed.set_footer(text="Приятной игры!\nВаш Sunrails Metrostroi.")
+
     return embed
 
 
@@ -225,10 +257,12 @@ async def ban_message(data_gamer):
     embed.set_author(name=f'Информация по бану игрока с ником {data_gamer.SID.nick}')
     embed.add_field(name='SteamID:',
                     value=data_gamer.SID_id, inline=False)
+    embed.add_field(name='Номер сервера: ',
+                    value=data_gamer.server, inline=False)
     embed.add_field(name='Точная дата бана: ',
                     value=time.ctime(int(data_gamer.ban_date)), inline=True)
-    embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{(data_gamer.unban_date - data_gamer.ban_date) // 60} мин.', inline=False)
+    embed.add_field(name='Дата разбана: ',
+                    value='Примерно через ∞ мин.' if data_gamer.unban_date == 0 else time.ctime(int(data_gamer.unban_date)), inline=False)
     embed.add_field(name='Причина бана: ',
                     value=data_gamer.ban_reason, inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',
@@ -236,21 +270,21 @@ async def ban_message(data_gamer):
     return embed
 
 
-async def check_ban(ban):
+async def check_ban(ban, client):
     embed = discord.Embed(
         colour=discord.Colour.red()
     )
-    embed.set_author(name=f'Информация по бану игрока с ником {ban[1]}')
+    embed.set_author(name=f'Информация по бану игрока с ником {client.name}')
     embed.add_field(name='Ник забаненого:',
-                    value=ban[1], inline=False)
-    embed.add_field(name='Точная дата бана: ',
-                    value=time.ctime(int(ban[7])), inline=True)
+                    value=client.name, inline=False)
+    embed.add_field(name='Дата разбана: ',
+                    value='Примерно через ∞ мин.' if data_gamer.unban_date == 0 else time.ctime(int(data_gamer.unban_date)), inline=False)
     embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{(int(time.time()) - int(ban[6])) // 60} мин.', inline=False)
+                    value=f'{(int(time.time()) - ban.unban_date) // 60} мин.', inline=False)
     embed.add_field(name='Причина бана: ',
-                    value=ban[5], inline=False)
+                    value=ban.reason, inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',
-                    value=ban[4], inline=False)
+                    value=ban.ban_admin, inline=False)
     return embed
 
 
@@ -261,8 +295,8 @@ async def discord_check_ban(data_gamer):
     embed.set_author(name=f'Информация по бану игрока {data_gamer.SID.nick}')
     embed.add_field(name='Точная дата бана: ',
                     value=time.ctime(int(data_gamer.ban_date)), inline=False)
-    embed.add_field(name='Время, через сколько бан окончится: ',
-                    value=f'{(int(data_gamer.unban_date) - int(time.time())) // 60} мин.', inline=False)
+    embed.add_field(name='Дата разбана: ',
+                    value='Примерно через ∞ мин.' if data_gamer.unban_date == 0 else time.ctime(int(data_gamer.unban_date)), inline=False)
     embed.add_field(name='Причина бана: ',
                     value=data_gamer.ban_reason, inline=False)
     embed.add_field(name='Администратор, выписавыший бан: ',
@@ -483,6 +517,41 @@ async def all_members(ctx, all_data):
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
 
+
+async def present(thing, amount, user_icon):
+    gif = "https://i.gifer.com/2EL.gif"
+
+    embed = discord.Embed(
+        colour=discord.Colour.from_rgb(random.randint(0, 256),
+                                       random.randint(0, 256),
+                                       random.randint(0, 256))
+    )
+
+    embed.set_author(name="Поздравляем с наступающим Новым Годом!")
+    embed.description = f"Вот Ваш подарок на **{amount} {thing}**. Мы рады что вы с нами и хотели бы, " \
+                        f"чтобы новый год прошел для вас намного лучше!"
+    embed.set_image(url=gif)
+    embed.set_thumbnail(url=user_icon)
+    embed.set_footer(text="С новым 2021 годо!\nВаш Sunrails Metrostroi.")
+    return embed
+
+
+async def news(message):
+    now = datetime.datetime.now()
+
+    embed = discord.Embed(
+        colour=discord.Colour.from_rgb(60, 66, 241),
+        title=f"Sunrails Metrostroi"
+    )
+
+    embed.set_author(name=message.author.name)
+    embed.description = message.content
+
+    embed.set_footer(text=f"Новость опубликована в {now.strftime('%H:%M %d.%m.%Y')}",
+                     icon_url=message.guild.icon_url)
+
+    return embed
+
 # async def achievement(member, achievement, guild):
 #     now = datetime.datetime.now()
 #
@@ -496,3 +565,48 @@ async def all_members(ctx, all_data):
 #         embed.set_footer(text=f"{guild.name} | {guild.system_channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
 #
 #     return embed, info[achievement]["reward"]
+
+
+async def first_april(ctx, win, thing):
+    phraze = {
+        297421866828693505: "О, Борис Сергеевич, как неожиданно и приятно. Вот ваши 100 000 000 реверсивок.",
+        269452196104372225: "ЧСВ? Ну и ладно. Вот твои 100 000 000 реверсивок.",
+        413783383215177728: "Системный администратор Луис Ля Рошель, как вам такой подарок? Ваши 100 000 000 реверсивок.",
+        302047054182612993: "Станислав Андреевич, позвольте увеличить ваш бюджет на 100 000 000 реверсивок.",
+        199120058797129728: "Ista011 когда светофоры? Вот аванс в размере 100 000 000 реверсивок на всякий.",
+        721308476709535775: "Яуза лучший поезд не так ли? Поэтому я считаю, что вы должны спонсировать его. Вот ваши 100 000 000 реверсивок.",
+        314813205148991489: "Голубь? Зачем? Почему не орел? Почему не ястреб? Почему Голубь? Вот твои 100 000 000 реверсивок.",
+        702105550514814987: "Л.К.М.С.З.Д - Люди Которые Могут Сажать Зеленые Деревья. Что? Ничего. Вот ваши 100 000 000 реверсивок.",
+        326983105472888833: "Посейдон, посиди пожалуйста. Вот твои 100 000 000 реверсивок.",
+        653309782987505695: "АХАХАХ ТУПОЙ ГРАШИК НИЧЕГО ТЕБЕ ОПЯТЬ НЕ ДА... О ладно, так уж и быть - 100 000 000 реверсивок твои.",
+        256875988992917505: "Привет, как дела? Надеюсь хорошо. 100 000 000 реверсивок для поднятия настроения.",
+        610803012754997288: "РЖД Егор - Российский железнодорожный Егор - звучит хайпово, поэтому лови 100 000 000 реверсивок.",
+        484004162246279169: "Люблю волков, до момента где они тебя едят. Не ешь мены, держи 100 000 000 реверсивок.",
+        323157479968210974: "Капитолик, Эндрю, Капитошка, Тонна Агентов Смитов - так кто ты? Лови 100 000 000 реверсивок и не страдай от биполярочки.",
+        613479283473645568: "Боль в душе или боль в ногах? Нурофен (это не реклама) - решит твои проблемы. А он стоит 100 000 000 реверсивок.",
+        349648699976318987: "Ржака та в том, что рисик то и придумал меня а в итоге получает столько сколько и все остальные.",
+        349561004172115979: "Хаааай Дани, когда отдашь сотку? Ладно я тут подумала, вот тебе 100 000 000 реверсивок.",
+        355035186297044992: "Блуфи фокс, как перевести твой ник? Фокс - лиса, а Блуфи? Ладно сам разберешься, вот тебе 100 000 000 реверсивок для размышления.",
+        176241484465438721: "Инструктор 3 коллоны или мужчина с сексуальным голосом? Наконец-то мы начали задавать правильные вопросы. Лови 100 000 000 реверсивок.",
+        580080770870411275: "Ягада малинка, укуси меня пчала А это твои 100 000 000 реверсивок.",
+        566579942285115392: "Paula von Luzgen, we are losing him! Take your 100 000 000 revers and help!",
+        637752353780662272: "Слыш аватарку вернул. Верни сделанного в бездне быстра. Вот тебе 100 000 000 реверсивок чтобы вернул."
+    }
+
+    now = datetime.datetime.now()
+    embed = discord.Embed(colour=discord.Colour.from_rgb(random.randint(0, 256),
+                                                         random.randint(0, 256),
+                                                         random.randint(0, 256)))
+    if ctx.author.id in phraze.keys():
+        embed.set_author(name=f"Вау что это?")
+        embed.description = phraze[ctx.author.id]
+        embed.set_thumbnail(url=ctx.guild.icon_url)
+        embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    else:
+        embed.set_author(name=f"Рулетка активировона. {win} {thing}.")
+        embed.description = f"Сегодня ваш куш составил **{win} {thing}**. " \
+                            f"Но мы уверены, что в следующий раз вы получите больше!\n\n" \
+                            f"Ваш Sunrails Metrostroi."
+        embed.set_thumbnail(url=ctx.guild.icon_url)
+        embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    return embed

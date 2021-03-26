@@ -1,13 +1,14 @@
 import peewee
+import json as js
 
-
-with open("functions/info", "r", encoding="utf8") as file:
-    config = file.read().splitlines()
+with open("stuff/config.json", "r", encoding="utf8") as file:
+    json = js.load(file)
+    db_config = json['database']
     db = peewee.MySQLDatabase(
-        host=config[0],
-        user=config[1],
-        password=config[2],
-        database=config[3],
+        host=db_config['host'],
+        user=db_config['user'],
+        password=db_config['password'],
+        database=db_config['database'],
         port=3306,
         charset="utf8"
     )
@@ -20,7 +21,7 @@ class DBModel(peewee.Model):
 
 class GmodPlayer(DBModel):
     SID = peewee.CharField(max_length=25, unique=True)
-    group = peewee.TextField(null=False,  default="user")
+    group = peewee.TextField(null=False, default="user")
     status = peewee.TextField(null=False, default="status")
     nick = peewee.TextField(null=False, default="nick")
     synch = peewee.SmallIntegerField(null=False, default=0)
@@ -34,6 +35,7 @@ class GmodBan(DBModel):
     SID = peewee.ForeignKeyField(GmodPlayer, field="SID",
                                  on_update="cascade", on_delete="cascade")
     ban = peewee.SmallIntegerField(default=0)
+    server = peewee.SmallIntegerField(default=1)
     ban_admin = peewee.TextField(default="")
     ban_reason = peewee.TextField(default="")
     ban_date = peewee.TextField(default="")
@@ -45,7 +47,6 @@ class GmodBan(DBModel):
 
 class UserDiscord(DBModel):
     discord_id = peewee.BigIntegerField(unique=True)
-    rating = peewee.IntegerField(default=0)
     money = peewee.BigIntegerField(default=0)
     gold_money = peewee.BigIntegerField(default=0)
     chance_roulette = peewee.BooleanField(default=True)
@@ -53,6 +54,13 @@ class UserDiscord(DBModel):
 
     class Meta:
         table_name = "ds_users"
+
+
+class Rating(DBModel):
+    discord = peewee.ForeignKeyField(UserDiscord, field="discord_id", on_update="cascade", on_delete="cascade")
+    user = peewee.ForeignKeyField(UserDiscord, field="discord_id", on_update="cascade", on_delete="cascade")
+    rating = peewee.BooleanField()
+    date = peewee.DateField()
 
 
 class RoleDiscord(DBModel):
@@ -106,7 +114,7 @@ class AllTimePlay(DBModel):
 
     class Meta:
         table_name = "player_group_time"
-        order_by = ("all_time_on_server", )
+        order_by = ("all_time_on_server",)
 
 
 class StatisticsDriving(DBModel):
@@ -140,7 +148,7 @@ class StatisticsDriving(DBModel):
 
     class Meta:
         table_name = "statistics"
-        order_by = ("date", )
+        order_by = ("date",)
 
 
 class RolesGmod(DBModel):
@@ -151,6 +159,12 @@ class RolesGmod(DBModel):
 class TeamsGmodName(DBModel):
     group = peewee.TextField(unique=True, default='')
     team = peewee.TextField(unique=True, default='')
+
+
+class NewYearPresents(DBModel):
+    discord_id = peewee.ForeignKeyField(UserDiscord, field="discord_id",
+                                        on_update="cascade", on_delete="cascade", primary_key=True)
+    present = peewee.IntegerField(null=False)
 
 
 RoleUser = RoleDiscord.discord_id.get_through_model()

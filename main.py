@@ -9,16 +9,31 @@ import functions.embeds
 import datetime
 import discord
 import logging
+import logging.handlers
+import json as js
 import os
+import sys
 import io
-
 
 client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'])
 
-logging.basicConfig(format="%(levelname)s: %(funcName)s (%(lineno)d): %(name)s: %(message)s",
-                    level=logging.INFO)
+# client.remove_command('help')
+
 logger = logging.getLogger("main")
 logger.setLevel(logging.INFO)
+
+log_format = "[%(asctime)s] %(levelname)s: %(filename)s(%(lineno)d) [%(funcName)s]: %(name)s: %(message)s"
+formatter = logging.Formatter(log_format)
+
+handler_file = logging.handlers.TimedRotatingFileHandler(filename="logs/kate.log", when="midnight", interval=1)
+handler_file.suffix = "%d%Y%m"
+handler_file.setFormatter(formatter)
+
+handler_console = logging.StreamHandler(sys.stdout)
+handler_console.setFormatter(formatter)
+
+logger.addHandler(handler_file)
+logger.addHandler(handler_console)
 
 
 class Katherine(object):
@@ -28,6 +43,7 @@ class Katherine(object):
         db.connect(reuse_if_open=True)
         db.create_tables([GmodPlayer,
                           GmodBan,
+                          Rating,
                           UserDiscord,
                           RoleDiscord,
                           RoleUser,
@@ -36,7 +52,8 @@ class Katherine(object):
                           DonateUser,
                           AllTimePlay,
                           StatisticsDriving,
-                          RolesGmod])
+                          RolesGmod,
+                          NewYearPresents])
 
         with open("stuff/words", 'r', encoding='utf8') as file:
             self.words = file.read().split()
@@ -47,6 +64,15 @@ class Katherine(object):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
+
+    @staticmethod
+    async def on_news(message):
+        embed = await functions.embeds.news(message)
+        if message.mention_everyone:
+            await message.channel.send(allowed_mentions=message.mentions[0],
+                                       embed=embed)
+        else:
+            await message.channel.send(embed=embed)
 
     def on_ready(self):
         @self.client.event
@@ -70,16 +96,13 @@ class Katherine(object):
 
         @self.client.event
         async def on_member_join(member):
-            roles_higher = list()
+            roles_higher = list() 
 
             UserDiscord.insert(discord_id=member.id).on_conflict_ignore().execute()
-            roles = RoleUser \
-                .select(RoleUser, UserDiscord, RoleDiscord) \
-                .join(RoleDiscord).switch(RoleUser) \
-                .join(UserDiscord)
+            roles = RoleUser.select(RoleUser, UserDiscord, RoleDiscord).join(RoleDiscord).switch(RoleUser) \
+                .join(UserDiscord).where(UserDiscord.discord_id == member.id)
 
             for signature in roles:
-                print(signature.rolediscord.role_id)
                 role = member.guild.get_role(signature.rolediscord.role_id)
                 if role.name == "@everyone":
                     continue
@@ -89,7 +112,7 @@ class Katherine(object):
                 except discord.Forbidden:
                     roles_higher.append(role)
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
             if not channel:
                 pass
             else:
@@ -110,24 +133,32 @@ class Katherine(object):
                                                                         member.name)
 
                 await channel.send(embed=embed)
+                logger.info(f"{member.name} enter in {member.guild.name}")
 
         @self.client.event
         async def on_member_remove(member):
             if member.id == self.client.user.id:
                 return
 
+            user = UserDiscord.get(UserDiscord.discord_id == member.id)
+
+            try:
+                query = RoleUser.delete().where(RoleUser.userdiscord_id == user.id)
+                query.execute()
+            except peewee.DoesNotExist:
+                pass
+
             for role in member.roles:
                 if role.name == "@everyone":
                     continue
 
-                user = UserDiscord.get(UserDiscord.discord_id == member.id)
                 role = RoleDiscord.get(RoleDiscord.role_id == role.id)
                 try:
                     user.user_role.add(role)
-                except peewee.PeeweeException:
-                    pass
+                except peewee.PeeweeException as error:
+                    logger.error(error)
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
             if not channel:
                 pass
             else:
@@ -152,14 +183,14 @@ class Katherine(object):
                                                                                     "#основной и #бот"))
                     await msg_after.delete()
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
             if not channel:
                 pass
             else:
                 embed = await functions.embeds.message_edit(msg_before, msg_after)
 
                 try:
-                    plot = io.open("changelog.txt", "rb")
+                    plot = io.open("stuff/changelog.txt", "rb")
                 except FileNotFoundError:
                     await channel.send(embed=embed)
                 except Exception as error:
@@ -168,7 +199,7 @@ class Katherine(object):
                     msg_changes = discord.File(plot, filename="Message_changes.txt")
                     await channel.send(embed=embed, file=msg_changes)
                     plot.close()
-                    os.remove("changelog.txt")
+                    os.remove("stuff/changelog.txt")
                     msg_changes.close()
 
         @self.client.event
@@ -178,7 +209,7 @@ class Katherine(object):
 
             guild_id, check, msg_delete = message.guild.id, None, None
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
             if not channel:
                 pass
             else:
@@ -189,10 +220,10 @@ class Katherine(object):
 
                     if check:
                         try:
-                            with io.open("changelogdeleted.txt", "w", encoding='utf8') as file:
+                            with io.open("stuff/changelogdeleted.txt", "w", encoding='utf8') as file:
                                 file.write("Удаленное сообщение:\n" + message.content)
 
-                            file = io.open("changelogdeleted.txt", "rb")
+                            file = io.open("stuff/changelogdeleted.txt", "rb")
                             msg_delete = discord.File(file, filename="Message_deleted.txt")
 
                             await channel.send(embed=await functions.embeds.delete_message(message, content),
@@ -200,7 +231,7 @@ class Katherine(object):
 
                             file.close()
                             msg_delete.close()
-                            os.remove("changelogdeleted.txt")
+                            os.remove("stuff/changelogdeleted.txt")
                         except Exception as error:
                             logging.error(error)
                     else:
@@ -214,7 +245,7 @@ class Katherine(object):
             if payload.cached_message:
                 logger.info("Message was delete in cache.")
                 return
-
+    
             guild_id = payload.guild_id
 
             guild = self.client.get_guild(guild_id)
@@ -224,7 +255,7 @@ class Katherine(object):
             except AttributeError as error:
                 logger.error(error)
 
-            channel_log = discord.utils.get(self.client.get_all_channels(), name='око')
+            channel_log = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
             if not channel_log:
                 pass
             else:
@@ -235,7 +266,7 @@ class Katherine(object):
 
         @self.client.event
         async def on_member_update(before_member, after_member):
-            channel = discord.utils.get(self.client.get_all_channels(), name='око')
+            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
             now = datetime.datetime.now()
 
             if before_member.roles != after_member.roles:
@@ -259,6 +290,14 @@ class Katherine(object):
                 await payload.member.add_roles(role)
 
         @self.client.event
+        async def on_raw_reaction_remove(payload):
+            guild = self.client.get_guild(payload.guild_id)
+            member = discord.utils.get(guild.members, id=payload.user_id)
+            role = guild.get_role(699898326698688542)
+            if payload.message_id == 768536526207844372 and payload.emoji.name == "✅":
+                await member.remove_roles(role)
+
+        @self.client.event
         async def on_message(message):
             for role in message.author.roles:
                 if role.id == 661271145089335306:
@@ -278,11 +317,14 @@ class Katherine(object):
 
             if message.author.id == self.client.user.id:
                 return
+            # elif message.channel.name == "разработка-бота":
+            #     await self.on_news(message)
             else:
                 await self.client.process_commands(message)
 
 
 Katherine(client)
 
-with open("TOKEN", "r", encoding="utf8") as file:
-    client.run(file.read().splitlines()[0])
+with open("stuff/config.json", "r", encoding="utf8") as file:
+    json = js.load(file)
+    client.run(json['TOKEN'])
