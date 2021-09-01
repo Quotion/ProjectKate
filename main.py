@@ -28,15 +28,11 @@ logger.setLevel(logging.INFO)
 log_format = "[%(asctime)s] %(levelname)s: %(filename)s(%(lineno)d) [%(funcName)s]: %(name)s: %(message)s"
 formatter = logging.Formatter(log_format)
 
-handler_file = logging.handlers.TimedRotatingFileHandler(filename="logs/kate.log", when="midnight", interval=1)
-handler_file.suffix = "%d%Y%m"
-handler_file.setFormatter(formatter)
+handlers = logging.StreamHandler(sys.stdout)
 
-handler_console = logging.StreamHandler(sys.stdout)
-handler_console.setFormatter(formatter)
+handlers.setFormatter(formatter)
 
-logger.addHandler(handler_file)
-logger.addHandler(handler_console)
+logger.addHandler(handlers)
 
 
 class Katherine(object):
@@ -333,6 +329,8 @@ class Katherine(object):
             #                                                                       "распростроянется только на канал "
             #                                                                       "#основной и #бот"))
             #         await message.delete()
+
+            
 
             if message.author.id == self.client.user.id:
                 return
