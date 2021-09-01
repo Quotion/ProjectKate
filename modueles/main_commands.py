@@ -77,7 +77,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         promocode_info = Promocode.get(Promocode.id == 1)
 
-        # channel = discord.utils.get(self.client.get_all_channels(), name='бот')
+        channel = discord.utils.get(self.client.get_all_channels(), name='бот')
         comment = random.choice(promo_event)
 
         if promocode_info.code > 1:
