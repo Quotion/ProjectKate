@@ -1,21 +1,16 @@
 
-/TOKEN
-/Procfile
-/requirements.txt
-/invests.json
-/modueles/credentials.json
-/modueles/spreadsheetid
+# /Procfile
+# /requirements.txt
+# /stuff/config.json
+# /stuff/credentials.json
+
 /__pycache__/
-
 /funtions/__pycache__/
-/functions/info
-
 /language/__pycache__/
-
 /modueles/__pycache__/
 
-/stuff/
+# /stuff/
+/env/
 /logs/
 /.idea/
-
-/venv/
+/.vscode/

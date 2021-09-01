@@ -1,4 +1,4 @@
-from models import StatusGMS, GmodPlayer, UserDiscord, db
+from models import GuildDiscord, StatusGMS, GmodPlayer, UserDiscord, db
 import requests
 import discord
 import functions
@@ -23,6 +23,9 @@ class Status(commands.Cog, name="Статус серверов"):
         logger.setLevel(logging.INFO)
         self.logger = logger
 
+        self.count = 0
+        self.id_creator = 349648699976318987
+
         self.update.start()
 
     async def open_connect(ctx):
@@ -34,7 +37,7 @@ class Status(commands.Cog, name="Статус серверов"):
             db.connect()
             return True
 
-    async def is_creator(ctx):
+    async def admin(ctx):
         return ctx.author.id == 349648699976318987 or discord.Permissions.administrator in ctx.author.top_role().permissions
 
     @staticmethod
@@ -91,13 +94,9 @@ class Status(commands.Cog, name="Статус серверов"):
     async def update(self):
         await self.open_connect()
         servers = None
-
-        channel = discord.utils.get(self.client.get_all_channels(), name='статус-серверов')
-        if not channel:
-            return
-
+        
         try:
-            servers = StatusGMS.select()
+            servers = StatusGMS.select().join(GuildDiscord)
         except peewee.PeeweeException as error:
             self.logger.error(error)
 
@@ -105,6 +104,11 @@ class Status(commands.Cog, name="Статус серверов"):
             return
 
         for server in servers:
+
+            guild = self.client.get_guild(server.guild.guild)
+            channel = discord.utils.get(guild.channels, name='статус-серверов')
+            if not channel:
+                continue
 
             server_address = (server.ip.split(":")[0], int(server.ip.split(":")[1]))
             collection = f"https://steamcommunity.com/sharedfiles/filedetails/?id={server.collection}"
@@ -131,17 +135,17 @@ class Status(commands.Cog, name="Статус серверов"):
                     SID, gmod, checked_ply, member, link = None, None, None, None, None
                     try:
                         gmod = GmodPlayer.get(GmodPlayer.nick == player["name"])
-                    except peewee.DoesNotExist:
-                        pass
+                    except peewee.DoesNotExist as error:
+                        self.logger.debug(error)
 
                     if gmod is not None:
                         try:
                             checked_ply = UserDiscord.get(UserDiscord.SID == gmod.SID)
                             member = await message.guild.fetch_member(checked_ply.discord_id)
-                        except peewee.DoesNotExist:
-                            pass
-                        except discord.NotFound:
-                            pass
+                        except peewee.DoesNotExist as error:
+                            self.logger.debug(error)
+                        except discord.NotFound as error:
+                            self.logger.debug(error)
 
                         SID = SteamID(gmod.SID)
                         link = SID.community_url
@@ -182,6 +186,10 @@ class Status(commands.Cog, name="Статус серверов"):
                 now = datetime.datetime.now()
                 title.set_footer(text=f'Последнее обновление данных: {str(now.strftime("%d.%m.%y %H:%M:%S "))}')
                 await message.edit(embed=title)
+                if self.count == 5 or self.count == 30:
+                    creator = await self.client.fetch_user(self.id_creator)
+                    await creator.send("Окей, все ок.")
+                    self.count == 0
             else:
                 name = server.name
                 now = datetime.datetime.now()
@@ -191,7 +199,11 @@ class Status(commands.Cog, name="Статус серверов"):
                 embed.description = f'Информация по `{name}`.' \
                                     f'\nВ данный момент сервер выключен или не удалось получить его данные.'
                 embed.set_footer(text=f'Последнее обновление данных: {str(now.strftime("%d.%m.%y %H:%M:%S "))}')
+                self.count += 1
                 await message.edit(embed=embed)
+                if self.count == 5 or self.count == 30:
+                    creator = await self.client.fetch_user(self.id_creator)
+                    await creator.send("Статус-серверов, проверь пжспс. Там опять беда. Знаю не охото но надо.")
 
     @update.before_loop
     async def ready(self):
@@ -203,7 +215,7 @@ class Status(commands.Cog, name="Статус серверов"):
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.guild_only()
     @commands.check(open_connect)
-    @commands.check(is_creator)
+    @commands.check(admin)
     async def ip(self, ctx, ip: str, collection: str):
         address = ip.split(":")
 
@@ -219,18 +231,8 @@ class Status(commands.Cog, name="Статус серверов"):
                                                                             "Порт {} не является числом, пожалуйста "
                                                                             "перепроверте его.".format(address[1])))
             return
-
-        try:
-            status = StatusGMS.get(ip=ip)
-        except peewee.DoesNotExist:
-            pass
-        else:
-            await ctx.channel.send(embed=await functions.embeds.description("Такой IP уже существует.",
-                                                                            "Если вы пытаетесь пересоздать статус то "
-                                                                            "пожалуйста обратитесь к @Rise"))
-            return
-
-        channel = discord.utils.get(self.client.get_all_channels(), name='статус-серверов')
+ 
+        channel = discord.utils.get(ctx.guild.channels, name='статус-серверов')
         if not channel:
             await ctx.channel.send(embed=await functions.embeds.description("Канал СТАТУС-СЕРВЕРОВ не создан",
                                                                             "Чтобы статус серверов заработал нужен"
@@ -243,7 +245,10 @@ class Status(commands.Cog, name="Статус серверов"):
         message = await channel.send(embed=await functions.embeds.description("Ожидайте изменение статуса",
                                                                               "Статус изменится в течение минуты."))
 
+        guild = GuildDiscord.get(GuildDiscord.guild == ctx.guild.id)
+
         query = StatusGMS.insert(ip=ip,
+                                 guild=guild.guild_id,
                                  message=message.id,
                                  collection=int(collection_id))
         query.execute()

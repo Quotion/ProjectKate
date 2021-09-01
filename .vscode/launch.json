@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Текущий файл",
+            "name": "Katherine",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "C:\\Users\\infin\\OneDrive\\Documents\\PY\\Katherine\\main.py",
             "console": "integratedTerminal"
         }
     ]

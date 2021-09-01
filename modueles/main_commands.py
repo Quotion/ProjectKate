@@ -2,15 +2,16 @@ import asyncio
 import datetime
 import requests
 import logging
+import peewee
 import os
 import json as js
-from pprint import pprint
 import steam.steamid
 from valve.rcon import *
 
 import discord
 from discord.ext import commands, tasks
 from models import *
+from peewee import fn, JOIN
 import random
 
 from PIL import Image
@@ -76,7 +77,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         promocode_info = Promocode.get(Promocode.id == 1)
 
-        channel = discord.utils.get(self.client.get_all_channels(), name='бот')
+        # channel = discord.utils.get(self.client.get_all_channels(), name='бот')
         comment = random.choice(promo_event)
 
         if promocode_info.code > 1:
@@ -186,22 +187,23 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         code = str(random.randint(10000, 100000)) + str(thing + 4)
 
-        Promocode.insert(code=code,
-                         amount=amount,
-                         thing=thing,
-                         create_admin=True)
+        promo = Promocode \
+                    .insert(code=code, amount=amount, thing=thing, creating_admin=True) \
+                    .on_conflict_ignore() \
+                    .execute()
 
         try:
             await ctx.author.send(embed=
                                   await functions.embeds.promocode("Вы создали промокод.",
                                                                    f"Вы создали промокод на {amount} "
                                                                    f"{'реверсивок' if thing == 0 else 'зл. реверсивок'}",
-                                                                   True))
+                                                                   True,
+                                                                   ctx.guild.icon_url))
         except discord.Forbidden:
             await ctx.send(embed=await functions.embeds.description(f"Невозможно отправить Вам промокод.",
                                                                     "Пожалуйста провертье, что Вам могут писать люди, "
                                                                     "даже если они не добавили Вас в друзья."))
-            Promocode.delete()
+            Promocode.delete().where(Promocode.id == promo.id)
             self.logger.warning("Unable to send message. Not enough rights. Forbidden.")
 
     @commands.command(name='просмотреть_промокоды',
@@ -231,8 +233,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                 inline=False)
             elif promo.code > 1 and promo.id == 1:
                 embed.add_field(name="Промокод, создаваемый автоматически:",
-                                value=f"Промокод **{all_promocodes[0][1]}** состовляет **{all_promocodes[0][2]} "
-                                      f"{'реверсивок' if all_promocodes[0][3] == 0 else 'зл. реверсивок'}**",
+                                value=f"Промокод **{promo.code}** состовляет **{promo.amount} "
+                                      f"{'реверсивок' if promo.thing == 0 else 'зл. реверсивок'}**",
                                 inline=False)
 
             else:
@@ -369,9 +371,16 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 data = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
                 user_ctx = ctx.author  
             
-            rat = int(Rating.select().where((Rating.discord == user_ctx.id) & (Rating.rating == True)).count()) - int(Rating.select().where((Rating.discord == user_ctx.id) & (Rating.rating == False)).count()) 
+            rat = int(Rating \
+                        .select() \
+                        .where((Rating.discord == user_ctx.id) & (Rating.rating == True)) \
+                        .count()) \
+                - int(Rating \
+                        .select() \
+                        .where((Rating.discord == user_ctx.id) & (Rating.rating == False)) \
+                        .count()) 
 
-            if data.SID is not None and data.SID is not "None":
+            if data.SID != None and data.SID != "None":
                 try:
                     steam = GmodPlayer.get(GmodPlayer.SID == data.SID)
                 except peewee.DoesNotExist:
@@ -387,10 +396,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                     rank='Данные отсутствуют', name_of_currency=name_of_currency)
                 else:
                     try:
-                        time = AllTimePlay.get(AllTimePlay.SID_id == data.SID)
+                        time = PlayerGroupTime \
+                                    .select(fn.SUM(PlayerGroupTime.time).alias('sum_time')) \
+                                    .where(PlayerGroupTime.player_id == steam.id) \
+                                    .get()
                         all_data = dict(rating=rat, money=data.money, gold_money=data.gold_money,
                                         steamid=data.SID,
-                                        nick=steam.nick, time=time.all_time_on_server, rank=steam.group,
+                                        nick=steam.nick, time=0 if not time.sum_time else time.sum_time, rank=steam.group,
                                         name_of_currency=name_of_currency)
                     except peewee.DoesNotExist:
                         all_data = dict(rating=rat, money=data.money, gold_money=data.gold_money,
@@ -406,10 +418,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                 rank='Не синхронизирован', name_of_currency=name_of_currency)
                 else:
                     try:
-                        time = AllTimePlay.get(AllTimePlay.SID_id == data.SID)
+                        time = PlayerGroupTime \
+                                    .select(fn.SUM(PlayerGroupTime.time).alias('sum_time')) \
+                                    .where(PlayerGroupTime.player_id == steam.id) \
+                                    .get()
                         all_data = dict(rating=rat, money=data.money, gold_money=data.gold_money,
                                         steamid=data.SID,
-                                        nick=steam.nick, time=time.all_time_on_server, rank=steam.group,
+                                        nick=steam.nick, time=0 if not time.sum_time else time.sum_time, rank=steam.group,
                                         name_of_currency=name_of_currency)
                     except peewee.DoesNotExist:
                         all_data = dict(rating=rat, money=data.money, gold_money=data.gold_money,
@@ -418,7 +433,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                         name_of_currency=name_of_currency)
 
             try:
-                img_profile = Image.open("stuff/profile2.jpg")
+                if ctx.guild.id == 569627056707600389:
+                    img_profile = Image.open("stuff/profile_gorails.jpg")
+                else:
+                    img_profile = Image.open("stuff/profile_sunrails.jpg")
 
                 fileRequest = requests.get(user_ctx.avatar_url)
                 img_avatar = Image.open(BytesIO(fileRequest.content))
@@ -507,7 +525,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
                 if all_data['time'] != "Не синхронизирован" and all_data['time'] != "Данные отсутствуют":
 
-                    all_time = str(datetime.timedelta(seconds=all_data['time']))
+                    all_time = str(datetime.timedelta(seconds=int(all_data['time'])))
 
                     if all_time.find("days") != -1:
                         all_time = all_time.replace("days", "дн")
@@ -614,6 +632,22 @@ class MainCommands(commands.Cog, name="Основные команды"):
     #                                                                 "Попытайте удачу в следующем году.\n\nС наступающим"
     #                                                                 "новым 2021 годом.\nВаш Sunrails Metrostroi."))
 
+    @commands.command(name='тех_канал',
+                      help="Данные которые нужны для использования этой команды:"
+                           "\n<channel>: Канал для тех. информации",
+                      brief="<префикс>удалить #канал-для-тех-сообщений",
+                      description="Команда позволяет видеть текст удаленный/измененных сообщений, кто ушел/пришел на ваш сервер.")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @commands.check(open_connect)
+    async def add_tech_channel(self, ctx, channel: discord.TextChannel):
+        query = GuildDiscord.update({GuildDiscord.tech_channel: channel.id}).where(GuildDiscord.guild == ctx.guild.id)
+        query.execute()
+        await ctx.send(embed=await functions.embeds.description(f"Канал {channel.name} назначен",
+                                                                f"Пожалуйста, провертье чтобы этот канал был доступен для {self.client.user.mention}"))
+
+
     @commands.command(name='удалить',
                       help="Данные которые нужны для использования этой команды:"
                            "\n<count>: Количество сообщений для удаления.",
@@ -653,13 +687,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
         msgs_deleted.close()
         os.remove("stuff/purgedeleted.txt")
 
-    @commands.command(name='рулетка',
+    @commands.command(name='шанс',
                       help="Дополнительные аргументы в этой команде не нужны.",
-                      brief="<префикс>рулетка",
-                      description="Команда для получения ежедневной прибыли.")
+                      brief="<префикс>шанс",
+                      description="Команда для получения ежедневной прибыли (3 раза в день).")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.check(open_connect)
-    async def roulette(self, ctx):
+    async def chance(self, ctx):
         await self.profile_check(ctx.author)
 
         now = datetime.datetime.now()
@@ -668,8 +702,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         if json['now_date'] != now.strftime("%d.%m.%Y"):
             json['now_date'] = now.strftime("%d.%m.%Y")
-            query = UserDiscord.update({UserDiscord.chance_roulette: True}).where(not UserDiscord.chance_roulette)
-            query.execute()
+            query = UserDiscord.update({UserDiscord.chance_roulette: 3}).where(not UserDiscord.chance_roulette).execute()
 
         with open("stuff/config.json", "w", encoding="utf8") as file:
             js.dump(json, file, indent=4)
@@ -681,34 +714,85 @@ class MainCommands(commands.Cog, name="Основные команды"):
         seconds = 60 - now.second if 60 - now.second >= 10 else "0" + str(60 - now.second)
 
         if not user.chance_roulette:
-            await ctx.send(embed=await functions.embeds.description("Рулетка для Вас на сегодня уже закончена.",
-                                                                    f"Активировать команды вы смоежете через "
+            await ctx.send(embed=await functions.embeds.description("Активанция шанса уже была использована полность.",
+                                                                    f"Активировать команду повторно вы смоежете через "
                                                                     f"**{hours}:{minutes}:{seconds}**."))
-            return
+            return 
 
-        user.chance_roulette = False
+        user.chance_roulette = user.chance_roulette - 1
         user.save()
+
+        times =  f"{user.chance_roulette} раза" if user.chance_roulette > 1 else f"{user.chance_roulette} раз"
 
         win, thing = await functions.helper.random_win()
 
-        if now.strftime("%m.%d") == "04.01":
-            if thing == 0:
-                user.money = user.money + win
-                user.save()
-                await ctx.send(embed=await functions.embeds.first_april(ctx, win, "реверсивок"))
-            elif thing == 1:
-                user.gold_money = user.gold_money + win
-                user.save()
-                await ctx.send(embed=await functions.embeds.first_april(ctx, win, f"зл. реверсивок"))
+        if thing == 0:
+            user.money = user.money + win
+            user.save()
+            await ctx.send(embed=await functions.embeds.chance(ctx, win, "реверсивок", times))
+        elif thing == 1:
+            user.gold_money = user.gold_money + win
+            user.save()
+            await ctx.send(embed=await functions.embeds.chance(ctx, win, f"зл. реверсивок", times))
+    
+    # @commands.command(name='VIP',
+    #                   help="Дополнительные аргументы в этой команде не нужны.",
+    #                   brief="<префикс>VIP",
+    #                   description="Команда для увеличения шанса на получения ")
+    # @commands.cooldown(1, 5, commands.BucketType.user)
+    # @commands.check(open_connect)
+
+    @commands.command(name='рулетка',
+                      help="Данные которые нужны для использования этой команды:"
+                           "\n<rate>: Количество зл. реверсивок для использования команды.",
+                      brief="<префикс>рулетка 1000",
+                      description="Команда для получения рандомного выигрыша, в зафисимости от коэффициента")
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.check(open_connect)
+    async def roulette(self, ctx, rate: int):
+        if rate > 1000000:
+            await ctx.send(embed=await functions.embeds.description("Превышена ставка для рулетки",
+                                                                    "Пожалуйста уменьшите ставку до **1 000 000 зл. реверсивок**"))
+            return
+
+        user = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
+
+        if user.gold_money < rate:
+            await ctx.send(embed=await functions.embeds.description("Недостаточно зл. реверсивок!",
+                                                                     "Количество введеной суммы реверсивок недостаточно для выполнения данной команды."))
+            return
+
+        win = int(await functions.helper.factor_win() * rate)
+        gif = "https://cdn.dribbble.com/users/2206179/screenshots/8185041/roulette_ball_v2_compress.gif"
+ 
+        if 0 < win / rate < 0.2:
+            text = f"{ctx.author.mention} проиграл всю поставленную сумму, как прискорбно.\n" \
+                   f"\n**Остаточная сумма: {win} зл. реверсивок**" \
+                   f"\n\nВаш SunRails Metrostroi"
+            gif = "https://j.gifs.com/rRo702.gif"
+        elif 0.2 < win / rate < 0.5:
+            text = f"{ctx.author.mention} неповезло и он получил всего ничего.\n" \
+                   f"\n**Остаточная сумма: {win} зл. реверсивок**" \
+                   f"\n\nВаш SunRails Metrostroi"
+        elif 1.1 < win / rate < 2:
+            text = f"{ctx.author.mention} выиграл в рулетке и получил назад не только сумму ставки, но еще и кэш.\n" \
+                   f"\n**Сумма выиграша: {win} зл. реверсивок**" \
+                   f"\n\nВаш SunRails Metrostroi"
+        elif 2 < win / rate < 3:
+            text = f"{ctx.author.mention} сорвал куш и победил саму судьбу в игре под названием Фортуна. Как вам такое Борис Сергеевич?\n" \
+                   f"\n**Сумма выиграша: {win} зл. реверсивок**" \
+                   f"\n\nВаш SunRails Metrostroi"
         else:
-            if thing == 0:
-                user.money = user.money + win
-                user.save()
-                await ctx.send(embed=await functions.embeds.roulette(ctx, win, "реверсивок"))
-            elif thing == 1:
-                user.gold_money = user.gold_money + win
-                user.save()
-                await ctx.send(embed=await functions.embeds.roulette(ctx, win, f"зл. реверсивок"))
+            text = f"{ctx.author.mention}, страшно. Очень страшно.\nЕсли бы мы знали, мы не знаем что это такое, если бы мы знали что это такое, мы не знаем что это такое."\
+                   f"\n**Остаточная сумма: {win} зл. реверсивок**" \
+                   f"\n\nВаш SunRails Metrostroi"
+            gif = "https://j.gifs.com/rRo702.gif"
+
+        user.gold_money = user.gold_money - rate + win
+        user.save()
+
+        await ctx.send(embed=await functions.embeds.roullete(ctx, text, gif))
+
 
     @commands.command(name='топ',
                       help="Дополнительные аргументы в этой команде не нужны.",
@@ -719,19 +803,20 @@ class MainCommands(commands.Cog, name="Основные команды"):
     async def top(self, ctx):
         all_data = list()
 
-        data = AllTimePlay.select(AllTimePlay.SID_id, AllTimePlay.all_time_on_server).limit(10).order_by(
-            AllTimePlay.all_time_on_server.desc()).execute()
+        data = PlayerGroupTime \
+                .select(PlayerGroupTime.player_id, fn.SUM(PlayerGroupTime.time).alias('sum_time')) \
+                .join(GmodPlayer, JOIN.LEFT_OUTER) \
+                .group_by(PlayerGroupTime.player_id) \
+                .order_by(fn.SUM(PlayerGroupTime.time).desc()) \
+                .limit(10)
 
         embed = discord.Embed(colour=discord.Colour.dark_gold())
         embed.set_author(name="ТОП 10 игроков сервера {}".format(ctx.guild.name))
 
         for info, count in zip(data, range(10)):
-            nick = GmodPlayer.select(GmodPlayer.nick).where(GmodPlayer.SID == info.SID_id).get()
-            nick = nick.nick
+            link = steam.steamid.SteamID(info.player_id.SID)
 
-            link = steam.steamid.SteamID(info.SID_id)
-
-            time = str(datetime.timedelta(seconds=info.all_time_on_server))
+            time = str(datetime.timedelta(seconds=int(info.sum_time)))
             if time.find("days") != -1:
                 time = time.replace("days", "дн")
             else:
@@ -741,37 +826,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 time = time.replace("weeks", "нед")
             else:
                 time = time.replace("week", "нед")
-            all_data.append(f"{count + 1}. [{nick}]({link.community_url}) ({info.SID_id}) - {time}")
+            all_data.append(f"{count + 1}. [{info.player_id.nick}]({link.community_url}) ({info.player_id.SID}) - {time}")
 
         embed.description = '\n'.join([one_man for one_man in all_data])
 
         await ctx.send(embed=embed)
-
-    # @commands.command(name='продать',
-    #                   help="Данные которые нужны для использования этой команды:"
-    #                        "\n<rating>: Количетсво рейтинга для продажи.",
-    #                   brief="<префикс>продать 20",
-    #                   description="Команда, позволяющая продать рейтинг за 1000 обычной валюты.")
-    # @commands.cooldown(1, 5, commands.BucketType.user)
-    # @commands.check(open_connect)
-    # async def sale(self, ctx, rating: int):
-    #     await self.profile_check(ctx.author)
-
-    #     data = UserDiscord.get(UserDiscord.discord_id == ctx.author.id)
-
-    #     if data.rating < rating or rating < 0:
-    #         await ctx.send(embed=await functions.embeds.description("Недостаточно рейтинга.",
-    #                                                                 f"Вы хотите продать рейтинг, которого у Вас меньше,"
-    #                                                                 f"чем вы ввели."))
-    #         return
-
-    #     data.rating -= rating
-    #     data.money = data.money + (rating * 1000)
-    #     data.save()
-
-    #     await ctx.send(embed=await functions.embeds.description("Рейтинг успешно продан.",
-    #                                                             f"Вы продали {rating} рейтинга за "
-    #                                                             f"{rating * 1000} реверсивок"))
 
     @commands.command(name='обмен',
                       help="Данные которые нужны для использования этой команды:"
@@ -867,7 +926,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                       brief="<префикс>голосование Стоит лм убрать меня с админки? +да +нет +что?",
                       description="Команда создает голосвание, но уже на определенное количетсво времени, "
                                   "которое можно использовать как угодно.")
-    @commands.guild_only()
+    @commands.guild_only() 
     @commands.has_permissions(administrator=True)
     @commands.cooldown(1, 60, commands.BucketType.user)
     async def polls_time(self, ctx, time: int, *, data: str):
@@ -1127,11 +1186,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.red())
             embed.set_author(name="Недостаточно прав.")
             embed.description = "У вас недостаточно прав для использования данной команды."
             await ctx.send(embed=embed)
         elif isinstance(error, commands.MissingRequiredArgument):
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.dark_gold())
             embed.set_author(name="Нехватка аргументов в команде.")
             embed.description = f"{ctx.author.mention} недостаточно аргументов в команде, которую вы используете."
@@ -1139,12 +1200,14 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send(embed=embed)
             await ctx.send_help(ctx.command)
         elif isinstance(error, commands.NoPrivateMessage):
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.dark_gold())
             embed.set_author(name="Эта команда может быть использована только на сервере.")
             embed.description = f"{ctx.author.mention}, команда **{ctx.message.content.split()[0]}** не может быть " \
                                 f"использована в `Личных Сообщениях`."
             await ctx.send(embed=embed)
         elif isinstance(error, commands.TooManyArguments):
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.dark_gold())
             embed.set_author(name="Слишком много аргументов в команде.")
             embed.description = f"{ctx.author.mention} вы ввели аргументы, которые скорее всего не нужны здесь."
@@ -1152,12 +1215,14 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send(embed=embed)
             await ctx.send_help(ctx.command)
         elif isinstance(error, commands.CommandNotFound):
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.red())
             embed.set_author(name="Команда не найдена.")
             embed.description = f"Комадна **{ctx.message.content.split()[0]}** не существует или вы ошиблись в ее " \
                                 f"написании."
             await ctx.send(embed=embed)
         elif isinstance(error, commands.CommandOnCooldown):
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.red())
             embed.set_author(name="Пожалуйста, не спешите.")
             if int(error.retry_after) == 1:
@@ -1168,8 +1233,8 @@ class MainCommands(commands.Cog, name="Основные команды"):
                 cooldown = "{}, ожидайте ещё {} секунд перед тем как повторить команду."
             embed.description = cooldown.format(ctx.author.mention, int(error.retry_after))
             await ctx.send(embed=embed)
-
         elif isinstance(error, commands.BadArgument):
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.red())
             embed.set_author(name="Аргументы не соотсвуют нужным типам.")
             embed.description = f"Похоже, что тип данных, который вы ввели в качестве аргумента не соотсвутует " \
@@ -1177,6 +1242,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
             await ctx.send(embed=embed)
             await ctx.send_help(ctx.command)
         else:
+            self.logger.debug(error)
             embed = discord.Embed(colour=discord.Colour.dark_red())
             embed.set_author(name="Произошло непредвиденное исключение.")
             embed.description = str(error)

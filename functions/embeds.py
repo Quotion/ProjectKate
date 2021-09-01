@@ -159,18 +159,30 @@ async def purge(ctx, amount):
     embed.set_thumbnail(url='http://cdn.onlinewebfonts.com/svg/img_229056.png')
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
+ 
 
-
-async def roulette(ctx, win, thing):
+async def chance(ctx, win, thing, times):
     now = datetime.datetime.now()
     embed = discord.Embed(colour=discord.Colour.from_rgb(random.randint(0, 256),
                                                          random.randint(0, 256),
                                                          random.randint(0, 256)))
-    embed.set_author(name=f"Рулетка активировона. {win} {thing}.")
+    embed.set_author(name=f"Шанс использован. Осталось {times}.")
     embed.description = f"Сегодня ваш куш составил **{win} {thing}**. " \
                         f"Но мы уверены, что в следующий раз вы получите больше!\n\n" \
                         f"Ваш Sunrails Metrostroi."
     embed.set_thumbnail(url=ctx.guild.icon_url)
+    embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
+    return embed
+
+
+async def roullete(ctx, text, gif):
+    now = datetime.datetime.now()
+    embed = discord.Embed(colour=discord.Colour.from_rgb(random.randint(0, 256),
+                                                         random.randint(0, 256),
+                                                         random.randint(0, 256)))
+    embed.set_author(name=f"Рулетка активированна.")
+    embed.description = text
+    embed.set_image(url=gif)
     embed.set_footer(text=f"{ctx.guild.name} | {ctx.channel.name} | {now.strftime('%H:%M %d.%m.%Y')}")
     return embed
 

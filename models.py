@@ -19,6 +19,15 @@ class DBModel(peewee.Model):
         database = db
 
 
+class GuildDiscord(DBModel):
+    guild_id = peewee.IntegerField(primary_key=True)
+    guild = peewee.BigIntegerField()
+    tech_channel = peewee.BigIntegerField(default=0)
+
+    class Meta:
+        table_name = "guild_discord"
+
+
 class GmodPlayer(DBModel):
     SID = peewee.CharField(max_length=25, unique=True)
     group = peewee.TextField(null=False, default="user")
@@ -42,14 +51,14 @@ class GmodBan(DBModel):
     unban_date = peewee.TextField(default="")
 
     class Meta:
-        table_name = "ma_bans"
+        table_name = "ma_bans" 
 
 
 class UserDiscord(DBModel):
     discord_id = peewee.BigIntegerField(unique=True)
     money = peewee.BigIntegerField(default=0)
     gold_money = peewee.BigIntegerField(default=0)
-    chance_roulette = peewee.BooleanField(default=True)
+    chance_roulette = peewee.SmallIntegerField(default=3)
     SID = peewee.CharField(max_length=32, null=True)
 
     class Meta:
@@ -65,6 +74,7 @@ class Rating(DBModel):
 
 class RoleDiscord(DBModel):
     role_id = peewee.BigIntegerField(unique=True)
+    guild_id = peewee.ForeignKeyField(GuildDiscord, on_delete="cascade", on_update="cascade")
     discord_id = peewee.ManyToManyField(UserDiscord, backref='user_role')
 
     class Meta:
@@ -72,6 +82,7 @@ class RoleDiscord(DBModel):
 
 
 class Promocode(DBModel):
+    id = peewee.IntegerField(primary_key=True)
     code = peewee.IntegerField(null=False, default=0)
     amount = peewee.IntegerField(null=False, default=0)
     thing = peewee.IntegerField(null=False, default=0)
@@ -82,8 +93,10 @@ class Promocode(DBModel):
 
 
 class StatusGMS(DBModel):
-    ip = peewee.CharField(unique=True, max_length=24, null=False)
+    id = peewee.IntegerField(primary_key=True)
+    ip = peewee.CharField(max_length=24, null=False)
     name = peewee.TextField(default="Название сервера")
+    guild = peewee.ForeignKeyField(GuildDiscord, on_delete="cascade", on_update="cascade")
     message = peewee.BigIntegerField(null=False)
     collection = peewee.BigIntegerField(null=False)
 
@@ -102,63 +115,19 @@ class DonateUser(DBModel):
         table_name = "donate_user"
 
 
-class AllTimePlay(DBModel):
-    SID = peewee.ForeignKeyField(GmodPlayer, field="SID",
-                                 on_update="cascade", on_delete="cascade", primary_key=True)
-    user = peewee.IntegerField(default=0)
-    driver = peewee.IntegerField(default=0)
-    driver3class = peewee.IntegerField(default=0)
-    driver2class = peewee.IntegerField(default=0)
-    driver1class = peewee.IntegerField(default=0)
-    all_time_on_server = peewee.IntegerField(null=False, default=0)
+class Group(DBModel):
+    group_id = peewee.IntegerField(primary_key=True)
+    group = peewee.CharField(max_length=32)
+
+
+class PlayerGroupTime(DBModel):
+    time_id = peewee.IntegerField(primary_key=True)
+    player_id = peewee.ForeignKeyField(GmodPlayer, field="id", on_update="cascade", on_delete="cascade")
+    group_id = peewee.ForeignKeyField(Group, field="group_id", on_update="cascade", on_delete="cascade")
+    time = peewee.IntegerField()
 
     class Meta:
         table_name = "player_group_time"
-        order_by = ("all_time_on_server",)
-
-
-class StatisticsDriving(DBModel):
-    SID = peewee.CharField(max_length=30)
-    date = peewee.DateField()
-    ema_502 = peewee.IntegerField(default=0)
-    lvz_540 = peewee.IntegerField(default=0)
-    lvz_540_2 = peewee.IntegerField(default=0)
-    lvz_540_2k = peewee.IntegerField(default=0)
-    d_702 = peewee.IntegerField(default=0)
-    e_703 = peewee.IntegerField(default=0)
-    ezh_707 = peewee.IntegerField(default=0)
-    ezh3_710 = peewee.IntegerField(default=0)
-    msk_717 = peewee.IntegerField(default=0)
-    lvz_717 = peewee.IntegerField(default=0)
-    lvz_717_5k = peewee.IntegerField(default=0)
-    msk_717_5a = peewee.IntegerField(default=0)
-    msk_717_5m = peewee.IntegerField(default=0)
-    lvz_717_5p = peewee.IntegerField(default=0)
-    j717 = peewee.IntegerField(default=0)
-    tisu_718 = peewee.IntegerField(default=0)
-    yauza_720 = peewee.IntegerField(default=0)
-    yauza_720_a = peewee.IntegerField(default=0)
-    ubik_722_new = peewee.IntegerField(default=0)
-    ubik_722 = peewee.IntegerField(default=0)
-    ubik_722_1 = peewee.IntegerField(default=0)
-    ubik_722_3 = peewee.IntegerField(default=0)
-    mvm_740 = peewee.IntegerField(default=0)
-    oka_760 = peewee.IntegerField(default=0)
-    oka_760a = peewee.IntegerField(default=0)
-
-    class Meta:
-        table_name = "statistics"
-        order_by = ("date",)
-
-
-class RolesGmod(DBModel):
-    name = peewee.TextField(null=False)
-    group = peewee.TextField(null=False)
-
-
-class TeamsGmodName(DBModel):
-    group = peewee.TextField(unique=True, default='')
-    team = peewee.TextField(unique=True, default='')
 
 
 class NewYearPresents(DBModel):

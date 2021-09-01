@@ -4,8 +4,11 @@ from discord.ext.commands import Bot
 from modueles.status import Status
 from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
+from modueles.advert import Advert
 from models import *
+from peewee import JOIN
 import functions.embeds
+import requests
 import datetime
 import discord
 import logging
@@ -15,9 +18,9 @@ import os
 import sys
 import io
 
-client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'])
+intents = discord.Intents.all()
 
-# client.remove_command('help')
+client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'], intents=intents)
 
 logger = logging.getLogger("main")
 logger.setLevel(logging.INFO)
@@ -41,7 +44,8 @@ class Katherine(object):
         self.client = client
 
         db.connect(reuse_if_open=True)
-        db.create_tables([GmodPlayer,
+        db.create_tables([GuildDiscord,
+                          GmodPlayer,
                           GmodBan,
                           Rating,
                           UserDiscord,
@@ -50,13 +54,16 @@ class Katherine(object):
                           Promocode,
                           StatusGMS,
                           DonateUser,
-                          AllTimePlay,
-                          StatisticsDriving,
-                          RolesGmod,
-                          NewYearPresents])
+                          Group,
+                          PlayerGroupTime,
+                          NewYearPresents]) 
 
         with open("stuff/words", 'r', encoding='utf8') as file:
             self.words = file.read().split()
+        
+        with open('stuff/config.json', 'r', encoding='utf8') as config:
+            json = js.load(config)
+            self.join_role = json["gorails"]["join_role"]
 
         self.on_ready()
         self.events()
@@ -64,6 +71,7 @@ class Katherine(object):
         self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
+        self.client.add_cog(Advert(client))
 
     @staticmethod
     async def on_news(message):
@@ -85,13 +93,16 @@ class Katherine(object):
             await self.client.change_presence(
                 activity=discord.Game(name="{}help".format(self.client.command_prefix[0])))
 
-            guild = self.client.get_guild(580768441279971338)
-            for role in guild.roles:
-                RoleDiscord.insert(role_id=role.id).on_conflict_ignore().execute()
+            guilds = GuildDiscord.select(GuildDiscord.guild_id, GuildDiscord.guild)
+            for guild_discord in guilds:
+                guild = self.client.get_guild(guild_discord.guild)
+                for role in guild.roles:
+                    RoleDiscord.insert(role_id=role.id, guild_id=guild_discord.guild_id).on_conflict_ignore().execute()
 
     def events(self):
         @self.client.event
         async def on_guild_join(guild):
+            GuildDiscord.insert(guild=guild.id).on_conflict_ignore().execute()
             logger.info('Someone added {} to guild "{}"'.format(self.client.user.name, guild.name))
 
         @self.client.event
@@ -99,20 +110,25 @@ class Katherine(object):
             roles_higher = list() 
 
             UserDiscord.insert(discord_id=member.id).on_conflict_ignore().execute()
-            roles = RoleUser.select(RoleUser, UserDiscord, RoleDiscord).join(RoleDiscord).switch(RoleUser) \
-                .join(UserDiscord).where(UserDiscord.discord_id == member.id)
+            query = RoleUser \
+                        .select(RoleUser, UserDiscord, RoleDiscord) \
+                        .join(RoleDiscord) \
+                        .switch(RoleUser) \
+                        .join(UserDiscord) \
+                        .where(UserDiscord.discord_id == member.id)
 
-            for signature in roles:
+            for signature in query:
                 role = member.guild.get_role(signature.rolediscord.role_id)
                 if role.name == "@everyone":
                     continue
-
                 try:
                     await member.add_roles(role)
                 except discord.Forbidden:
                     roles_higher.append(role)
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
+            guild_discord = GuildDiscord.select(GuildDiscord.tech_channel).where(GuildDiscord.guild == member.guild.id).get()
+            channel = await self.client.fetch_channel(guild_discord.tech_channel)
+
             if not channel:
                 pass
             else:
@@ -143,8 +159,7 @@ class Katherine(object):
             user = UserDiscord.get(UserDiscord.discord_id == member.id)
 
             try:
-                query = RoleUser.delete().where(RoleUser.userdiscord_id == user.id)
-                query.execute()
+                RoleUser.delete().where(RoleUser.userdiscord_id == user.id).execute()
             except peewee.DoesNotExist:
                 pass
 
@@ -153,15 +168,18 @@ class Katherine(object):
                     continue
 
                 role = RoleDiscord.get(RoleDiscord.role_id == role.id)
+
                 try:
                     user.user_role.add(role)
                 except peewee.PeeweeException as error:
                     logger.error(error)
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
+            guild_discord = GuildDiscord.select(GuildDiscord.tech_channel).where(GuildDiscord.guild == member.guild.id).get()
+            channel = await self.client.fetch_channel(guild_discord.tech_channel)
+
             if not channel:
                 pass
-            else:
+            else: 
                 await channel.send(embed=await functions.embeds.member_exit(member))
                 logger.info("Member remove from guild ({})".format(member.guild.name))
 
@@ -183,7 +201,9 @@ class Katherine(object):
                                                                                     "#основной и #бот"))
                     await msg_after.delete()
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
+            guild_discord = GuildDiscord.select(GuildDiscord.tech_channel).where(GuildDiscord.guild == msg_before.guild.id).get()
+            channel = await self.client.fetch_channel(guild_discord.tech_channel)
+
             if not channel:
                 pass
             else:
@@ -207,37 +227,36 @@ class Katherine(object):
             if message.author.id == self.client.user.id:
                 return
 
-            guild_id, check, msg_delete = message.guild.id, None, None
+            check, msg_delete = None, None
 
-            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
-            if not channel:
-                pass
-            else:
-                if message.content:
-                    if len(message.content) > 50:
-                        content = message.content[0:40] + "..."
-                        check = True
+            guild_discord = GuildDiscord.select(GuildDiscord.tech_channel).where(GuildDiscord.guild == message.guild.id).get()
+            channel = await self.client.fetch_channel(guild_discord.tech_channel)
 
-                    if check:
-                        try:
-                            with io.open("stuff/changelogdeleted.txt", "w", encoding='utf8') as file:
-                                file.write("Удаленное сообщение:\n" + message.content)
+            if channel and message.content:
+                if len(message.content) > 50:
+                    content = message.content[0:40] + "..."
+                    check = True
 
-                            file = io.open("stuff/changelogdeleted.txt", "rb")
-                            msg_delete = discord.File(file, filename="Message_deleted.txt")
+                if check:
+                    try:
+                        with io.open("stuff/changelogdeleted.txt", "w", encoding='utf8') as file:
+                            file.write("Удаленное сообщение:\n" + message.content)
 
-                            await channel.send(embed=await functions.embeds.delete_message(message, content),
-                                               file=msg_delete)
+                        file = io.open("stuff/changelogdeleted.txt", "rb")
+                        msg_delete = discord.File(file, filename="Message_deleted.txt")
 
-                            file.close()
-                            msg_delete.close()
-                            os.remove("stuff/changelogdeleted.txt")
-                        except Exception as error:
-                            logging.error(error)
-                    else:
-                        await channel.send(embed=await functions.embeds.delete_message(message, message.content))
+                        await channel.send(embed=await functions.embeds.delete_message(message, content),
+                                           file=msg_delete)
+
+                        file.close()
+                        msg_delete.close()
+                        os.remove("stuff/changelogdeleted.txt")
+                    except Exception as error:
+                        logging.error(error)
                 else:
-                    await channel.send(embed=await functions.embeds.delete_message(message, "`Пустое сообщение`"))
+                    await channel.send(embed=await functions.embeds.delete_message(message, message.content))
+            elif channel and not message.content:
+                await channel.send(embed=await functions.embeds.delete_message(message, "`Пустое сообщение`"))
 
         @self.client.event
         async def on_raw_message_delete(payload):
@@ -256,9 +275,7 @@ class Katherine(object):
                 logger.error(error)
 
             channel_log = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
-            if not channel_log:
-                pass
-            else:
+            if channel_log:
                 channel = self.client.get_channel(payload.channel_id)
                 await channel_log.send(embed=await functions.embeds.raw_delete_message(user_info, channel,
                                                                                        payload.message_id))
@@ -266,7 +283,9 @@ class Katherine(object):
 
         @self.client.event
         async def on_member_update(before_member, after_member):
-            channel = discord.utils.get(self.client.get_all_channels(), name='⚡тех-записи⚡')
+            guild_discord = GuildDiscord.select(GuildDiscord.tech_channel).where(GuildDiscord.guild == after_member.guild.id).get()
+            channel = await self.client.fetch_channel(guild_discord.tech_channel)
+
             now = datetime.datetime.now()
 
             if before_member.roles != after_member.roles:
@@ -292,38 +311,98 @@ class Katherine(object):
         @self.client.event
         async def on_raw_reaction_remove(payload):
             guild = self.client.get_guild(payload.guild_id)
-            member = discord.utils.get(guild.members, id=payload.user_id)
+            member = await guild.fetch_member(payload.user_id)
             role = guild.get_role(699898326698688542)
             if payload.message_id == 768536526207844372 and payload.emoji.name == "✅":
                 await member.remove_roles(role)
 
         @self.client.event
         async def on_message(message):
-            for role in message.author.roles:
-                if role.id == 661271145089335306:
-                    return
-            for word in self.words:
-                if word in [letters.lower() for letters in message.content.split()] and (
-                        message.channel.name == "основной"
-                        or message.channel.name == "бот"):
-                    await message.channel.send(embed=
-                                               await functions.embeds.description("Использование запрещенных слов.",
-                                                                                  "Пожалуйста воздержитесь от "
-                                                                                  "использования **запрещенных слов в "
-                                                                                  "ваших предложениях**.\nЗапрет "
-                                                                                  "распростроянется только на канал "
-                                                                                  "#основной и #бот"))
-                    await message.delete()
+            # for role in message.author.roles:
+            #     if role.id == 661271145089335306:
+            #         return
+            # for word in self.words:
+            #     if word in [letters.lower() for letters in message.content.split()] and (
+            #             message.channel.name == "основной"
+            #             or message.channel.name == "бот"):
+            #         await message.channel.send(embed=
+            #                                    await functions.embeds.description("Использование запрещенных слов.",
+            #                                                                       "Пожалуйста воздержитесь от "
+            #                                                                       "использования **запрещенных слов в "
+            #                                                                       "ваших предложениях**.\nЗапрет "
+            #                                                                       "распростроянется только на канал "
+            #                                                                       "#основной и #бот"))
+            #         await message.delete()
 
             if message.author.id == self.client.user.id:
                 return
-            # elif message.channel.name == "разработка-бота":
-            #     await self.on_news(message)
+            elif message.channel.name == "🔑выдача-погон🔑":
+                await self.tables(message)
             else:
                 await self.client.process_commands(message)
 
+    async def tables(self, message):
+        def error_message(error):
+            return f'Что-то пошло не так!' \
+                   f'\nОшибка: `{error}`' \
+                   f'\nПример как должена выглядить заявка:' \
+                   f'\nhttps://discord.com/channels/569627056707600389/863493204032618526/868803928379260938'
+        
+        
+        with open('stuff/config.json', 'r', encoding='utf8') as file:
+            config = js.load(file)
+            api_key = config['gorails']['forum_api_key']
+            roles_id = config['gorails']['roles_id']
+        
+        for role in message.author.roles:
+            if role.id in list(map(int, roles_id.values())):
+                print(True)
+            print(role.id)
+
+        if len(message.content.split()) < 7 or len(message.content.split()) > 9:
+            await message.author.send(error_message('Провертье коррекность введеного вами сообщения'))
+            return
+
+        nick = message.content.split()[1]
+        table_number = message.content.split()[3]
+        column_number = message.content.split()[5]
+        group = message.content.split()[7]
+
+        request = requests.get('https://forum.gorails.org/api/core/members', params=dict(key=api_key, name=nick))
+
+        result = request.json()['results']
+
+        if result == []:
+            await message.author.send(error_message('Ник, введеный вами, не соответсвует ни одному нику на форуме.'))
+            return
+        
+        if result[0]['customFields']['2']['fields']['6']['value'] != str(table_number) and \
+           result[0]['customFields']['2']['fields']['3']['value'] != str(table_number):
+            await message.author.send(error_message('Табельный номер, указанный вами, не соответствует вашему табельному номеру на форуме.'))
+            return
+
+        if result[0]['customFields']['2']['fields']['9']['value'] != str(column_number):
+            await message.author.send(error_message('Колонна, указанная вами, не соответствует колонне, указанной на форуме.'))
+            return
+        
+        if group.lower() != 'тчмп' and group.lower() != 'тчм-3' and group.lower() != 'тчм-2' and group.lower() != 'тчм-1' and \
+           group.lower() != 'дсп' and  group.lower() != 'дспц' and  group.lower() != 'днц':
+            await message.author.send(error_message('Пожалуйста, укажите ваши погоны иным образом (пример: ТЧМИ/ДНЦ/ДСП/ТЧМ-2 и т.д.).'))
+            return
+    
+        if group.upper() not in result[0]['customFields']['2']['fields']['2']['value'] and \
+           group.upper() not in result[0]['customFields']['2']['fields']['5']['value']:
+            await message.author.send(error_message('Погоны, введенные вами, не соответсвуют тем, что выданы вам на форуме.'))
+            return
+
+        column_role = discord.utils.get(message.guild.roles, id=roles_id[str(column_number)])
+        user_role = discord.utils.get(message.guild.roles, id=roles_id['project_user'])
+        
+        await message.author.add_roles(column_role, user_role)
+        
 
 Katherine(client)
+
 
 with open("stuff/config.json", "r", encoding="utf8") as file:
     json = js.load(file)
