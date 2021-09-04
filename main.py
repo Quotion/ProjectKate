@@ -113,6 +113,10 @@ class Katherine(object):
                         .join(UserDiscord) \
                         .where(UserDiscord.discord_id == member.id)
 
+            if not query.exists():
+                join_role = member.guild.get_role(876374958190755850)
+                await member.add_roles(join_role)
+
             for signature in query:
                 role = member.guild.get_role(signature.rolediscord.role_id)
                 if role.name == "@everyone":
@@ -279,8 +283,13 @@ class Katherine(object):
 
         @self.client.event
         async def on_member_update(before_member, after_member):
-            guild_discord = GuildDiscord.select(GuildDiscord.tech_channel).where(GuildDiscord.guild == after_member.guild.id).get()
-            channel = await self.client.fetch_channel(guild_discord.tech_channel)
+            try:
+                guild_discord = GuildDiscord.select(GuildDiscord.tech_channel).where(GuildDiscord.guild == after_member.guild.id).get()
+                channel = await self.client.fetch_channel(guild_discord.tech_channel)
+            except peewee.DoesNotExist:
+                return
+            except Exception as error:
+                logger.error(error)
 
             now = datetime.datetime.now()
 
@@ -339,64 +348,64 @@ class Katherine(object):
             else:
                 await self.client.process_commands(message)
 
-    async def tables(self, message):
-        def error_message(error):
-            return f'Что-то пошло не так!' \
-                   f'\nОшибка: `{error}`' \
-                   f'\nПример как должена выглядить заявка:' \
-                   f'\nhttps://discord.com/channels/569627056707600389/863493204032618526/868803928379260938'
+    # async def tables(self, message):
+    #     def error_message(error):
+    #         return f'Что-то пошло не так!' \
+    #                f'\nОшибка: `{error}`' \
+    #                f'\nПример как должена выглядить заявка:' \
+    #                f'\nhttps://discord.com/channels/569627056707600389/863493204032618526/868803928379260938'
         
         
-        with open('stuff/config.json', 'r', encoding='utf8') as file:
-            config = js.load(file)
-            api_key = config['gorails']['forum_api_key']
-            roles_id = config['gorails']['roles_id']
+    #     with open('stuff/config.json', 'r', encoding='utf8') as file:
+    #         config = js.load(file)
+    #         api_key = config['gorails']['forum_api_key']
+    #         roles_id = config['gorails']['roles_id']
         
-        for role in message.author.roles:
-            if role.id in list(map(int, roles_id.values())):
-                print(True)
-            print(role.id)
+    #     for role in message.author.roles:
+    #         if role.id in list(map(int, roles_id.values())):
+    #             print(True)
+    #         print(role.id)
 
-        if len(message.content.split()) < 7 or len(message.content.split()) > 9:
-            await message.author.send(error_message('Провертье коррекность введеного вами сообщения'))
-            return
+    #     if len(message.content.split()) < 7 or len(message.content.split()) > 9:
+    #         await message.author.send(error_message('Провертье коррекность введеного вами сообщения'))
+    #         return
 
-        nick = message.content.split()[1]
-        table_number = message.content.split()[3]
-        column_number = message.content.split()[5]
-        group = message.content.split()[7]
+    #     nick = message.content.split()[1]
+    #     table_number = message.content.split()[3]
+    #     column_number = message.content.split()[5]
+    #     group = message.content.split()[7]
 
-        request = requests.get('https://forum.gorails.org/api/core/members', params=dict(key=api_key, name=nick))
+    #     request = requests.get('https://forum.gorails.org/api/core/members', params=dict(key=api_key, name=nick))
 
-        result = request.json()['results']
+    #     result = request.json()['results']
 
-        if result == []:
-            await message.author.send(error_message('Ник, введеный вами, не соответсвует ни одному нику на форуме.'))
-            return
+    #     if result == []:
+    #         await message.author.send(error_message('Ник, введеный вами, не соответсвует ни одному нику на форуме.'))
+    #         return
         
-        if result[0]['customFields']['2']['fields']['6']['value'] != str(table_number) and \
-           result[0]['customFields']['2']['fields']['3']['value'] != str(table_number):
-            await message.author.send(error_message('Табельный номер, указанный вами, не соответствует вашему табельному номеру на форуме.'))
-            return
+    #     if result[0]['customFields']['2']['fields']['6']['value'] != str(table_number) and \
+    #        result[0]['customFields']['2']['fields']['3']['value'] != str(table_number):
+    #         await message.author.send(error_message('Табельный номер, указанный вами, не соответствует вашему табельному номеру на форуме.'))
+    #         return
 
-        if result[0]['customFields']['2']['fields']['9']['value'] != str(column_number):
-            await message.author.send(error_message('Колонна, указанная вами, не соответствует колонне, указанной на форуме.'))
-            return
+    #     if result[0]['customFields']['2']['fields']['9']['value'] != str(column_number):
+    #         await message.author.send(error_message('Колонна, указанная вами, не соответствует колонне, указанной на форуме.'))
+    #         return
         
-        if group.lower() != 'тчмп' and group.lower() != 'тчм-3' and group.lower() != 'тчм-2' and group.lower() != 'тчм-1' and \
-           group.lower() != 'дсп' and  group.lower() != 'дспц' and  group.lower() != 'днц':
-            await message.author.send(error_message('Пожалуйста, укажите ваши погоны иным образом (пример: ТЧМИ/ДНЦ/ДСП/ТЧМ-2 и т.д.).'))
-            return
+    #     if group.lower() != 'тчмп' and group.lower() != 'тчм-3' and group.lower() != 'тчм-2' and group.lower() != 'тчм-1' and \
+    #        group.lower() != 'дсп' and  group.lower() != 'дспц' and  group.lower() != 'днц':
+    #         await message.author.send(error_message('Пожалуйста, укажите ваши погоны иным образом (пример: ТЧМИ/ДНЦ/ДСП/ТЧМ-2 и т.д.).'))
+    #         return
     
-        if group.upper() not in result[0]['customFields']['2']['fields']['2']['value'] and \
-           group.upper() not in result[0]['customFields']['2']['fields']['5']['value']:
-            await message.author.send(error_message('Погоны, введенные вами, не соответсвуют тем, что выданы вам на форуме.'))
-            return
+    #     if group.upper() not in result[0]['customFields']['2']['fields']['2']['value'] and \
+    #        group.upper() not in result[0]['customFields']['2']['fields']['5']['value']:
+    #         await message.author.send(error_message('Погоны, введенные вами, не соответсвуют тем, что выданы вам на форуме.'))
+    #         return
 
-        column_role = discord.utils.get(message.guild.roles, id=roles_id[str(column_number)])
-        user_role = discord.utils.get(message.guild.roles, id=roles_id['project_user'])
+    #     column_role = discord.utils.get(message.guild.roles, id=roles_id[str(column_number)])
+    #     user_role = discord.utils.get(message.guild.roles, id=roles_id['project_user'])
         
-        await message.author.add_roles(column_role, user_role)
+    #     await message.author.add_roles(column_role, user_role)
         
 
 Katherine(client)
