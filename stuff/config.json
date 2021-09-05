@@ -1,9 +1,9 @@
 {
     "database": {
-        "host": "pei17y9c5bpuh987.chr7pe7iynqr.eu-west-1.rds.amazonaws.com",
-        "user": "lfxts1xfoevxi0bd",
-        "password": "k8ah6x2prxec6luw",
-        "database": "y7sqim98f6vlo1zy"
+        "host": "79.111.33.85",
+        "user": "sunrise",
+        "password": "N57ZT*KNXU4BzHB*|{0wkYzERpGYfoeu",
+        "database": "sunrise"
     },
     "gorails": {
         "forum_api_key": "58f570bec1f40e9705e040c604a8613b",
