@@ -230,7 +230,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url=self.extra[5] if self.extra[5] else random.choices(self.images))
+        embed.set_image(url=self.extra[5] if (5 < len(self.extra)) else random.choices(self.images))
 
         embed.set_footer(text="Ждём Вас!")
 
@@ -277,7 +277,7 @@ class Advert(commands.Cog, name="Объявления"):
 
         embed.description = 'Приносим свои извинения за предоставленные неудобства.'
 
-        embed.set_image(url=self.extra[4] if self.extra[4] else random.choices(self.images))
+        embed.set_image(url=self.extra[4] if (4 < len(self.extra)) else random.choices(self.images))
 
         embed.set_footer(text="Скоро все починим!")
 
@@ -334,7 +334,7 @@ class Advert(commands.Cog, name="Объявления"):
                             inline=False)
 
 
-        embed.set_image(url=self.extra[5] if self.extra[5] else random.choices(self.images))
+        embed.set_image(url=self.extra[5] if (5 < len(self.extra)) else random.choices(self.images))
 
         embed.set_footer(text="Приятной игры!")
 
@@ -392,7 +392,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url=self.extra[4] if self.extra[4] else random.choices(self.images))
+        embed.set_image(url=self.extra[4] if (4 < len(self.extra)) else random.choices(self.images))
 
         embed.set_footer(text="Удачи!")
 
@@ -442,7 +442,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url=self.extra[7] if self.extra[7] else random.choices(self.images))
+        embed.set_image(url=self.extra[7] if (7 < len(self.extra)) else random.choices(self.images))
 
         embed.set_footer(text="Ждем Вас!")
 
@@ -458,7 +458,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url=self.extra[3] if self.extra[3] else random.choices(self.images))
+        embed.set_image(url=self.extra[3] if (3 < len(self.extra)) else random.choices(self.images))
 
         embed.set_footer(text="Ваш MaDaDev RTS!")
 
