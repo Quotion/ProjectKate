@@ -1,4 +1,4 @@
-import requests
+import random
 import json
 import vk_api
 import discord
@@ -41,6 +41,13 @@ class Advert(commands.Cog, name="Объявления"):
         self.session = vk_api.VkApi(token=self.TOKEN_VK)
         self.vk = self.session.get_api()
 
+        self.images = [
+            "https://i.ibb.co/Sn0Dbgt/photo-2021-08-22-11-08-02.jpg",
+            "https://i.ibb.co/xsx59fZ/photo-2021-08-22-11-07-22.jpg",
+            "https://i.ibb.co/2nX58S5/photo-2021-08-22-11-07-40.jpg",
+            "https://i.ibb.co/kHWj12p/photo-2021-08-22-11-08-19.jpg"
+        ]
+
     def multiplayer(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(97, 152, 255),
                               title=f'{self.data[1]} Мультиплеер {self.data[2]}',
@@ -62,7 +69,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url="https://i.ibb.co/xsx59fZ/photo-2021-08-22-11-07-22.jpg")
+        embed.set_image(url=random.choices(self.images))
 
         embed.set_footer(text="Приятной игры!")
 
@@ -112,7 +119,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url="https://i.ibb.co/Sn0Dbgt/photo-2021-08-22-11-08-02.jpg")
+        embed.set_image(url=random.choices(self.images))
 
         embed.set_footer(text="Приятной игры!")
 
@@ -169,7 +176,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url="https://i.ibb.co/2nX58S5/photo-2021-08-22-11-07-40.jpg")
+        embed.set_image(url="http://transport-games.ru/uploads/monthly_2018_07/6JMdhKPfo3c.jpg.6d0e9eb9cf28d4eb8e4e13bce3af78ed.jpg")
 
         embed.set_footer(text="Приятной игры!")
 
@@ -223,7 +230,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url="https://i.ibb.co/Sn0Dbgt/photo-2021-08-22-11-08-02.jpg")
+        embed.set_image(url=self.extra[5] if self.extra[5] else random.choices(self.images))
 
         embed.set_footer(text="Ждём Вас!")
 
@@ -270,7 +277,7 @@ class Advert(commands.Cog, name="Объявления"):
 
         embed.description = 'Приносим свои извинения за предоставленные неудобства.'
 
-        embed.set_image(url="https://i.ibb.co/xsx59fZ/photo-2021-08-22-11-07-22.jpg")
+        embed.set_image(url=self.extra[4] if self.extra[4] else random.choices(self.images))
 
         embed.set_footer(text="Скоро все починим!")
 
@@ -327,7 +334,7 @@ class Advert(commands.Cog, name="Объявления"):
                             inline=False)
 
 
-        embed.set_image(url="https://i.ibb.co/kHWj12p/photo-2021-08-22-11-08-19.jpg")
+        embed.set_image(url=self.extra[5] if self.extra[5] else random.choices(self.images))
 
         embed.set_footer(text="Приятной игры!")
 
@@ -385,7 +392,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url="https://i.ibb.co/Sn0Dbgt/photo-2021-08-22-11-08-02.jpg")
+        embed.set_image(url=self.extra[4] if self.extra[4] else random.choices(self.images))
 
         embed.set_footer(text="Удачи!")
 
@@ -435,9 +442,25 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0][0],
                             inline=False)
 
-        embed.set_image(url="https://i.ibb.co/kHWj12p/photo-2021-08-22-11-08-19.jpg")
+        embed.set_image(url=self.extra[7] if self.extra[7] else random.choices(self.images))
 
         embed.set_footer(text="Ждем Вас!")
+
+        return embed
+    
+    def another(self):
+        embed = discord.Embed(colour=discord.Colour.from_rgb(255, 255, 255),
+                              title=self.data[1],
+                              url=self.data[2] if self.data[2] else None)
+    
+        if self.extra:
+            embed.add_field(name='Основная информация:',
+                            value=self.extra[0][0],
+                            inline=False)
+
+        embed.set_image(url=self.extra[3] if self.extra[3] else random.choices(self.images))
+
+        embed.set_footer(text="Ваш MaDaDev RTS!")
 
         return embed
 
@@ -491,7 +514,8 @@ class Advert(commands.Cog, name="Объявления"):
             # self.request_vk()
         elif main_values['values'][0][0] == 'Стрим':
             embed = self.stream()
-            # self.request_vk()
+        elif main_values['values'][0][0] == 'Другое':
+            embed = self.another()
         
         
         await ctx.send(content="||@here||", embed=embed)
