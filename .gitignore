@@ -1,0 +1,16 @@
+
+# /Procfile
+# /requirements.txt
+# /stuff/config.json
+# /stuff/credentials.json
+
+/__pycache__/
+/funtions/__pycache__/
+/language/__pycache__/
+/modueles/__pycache__/
+
+# /stuff/
+/env/
+/logs/
+/.idea/
+/.vscode/

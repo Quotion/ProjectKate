@@ -1,0 +1,3 @@
+[console_scripts]
+pyprof2calltree = pyprof2calltree:main
+
