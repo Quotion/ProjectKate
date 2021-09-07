@@ -1,14 +1,15 @@
 {
     "database": {
-        "host": "10.44.0.244",
-        "user": "metrostroi",
-        "password": "hZ5yCGkyCrWUe^&r2$_H*f9&5Jk7qvqP",
-        "database": "metrostroi"
+        "host": "79.111.33.85",
+        "user": "sunrise",
+        "password": "N57ZT*KNXU4BzHB*|{0wkYzERpGYfoeu",
+        "database": "sunrise"
     },
     "gorails": {
         "forum_api_key": "58f570bec1f40e9705e040c604a8613b",
         "TOKEN_VK": "f1d00f08f099708ff989fab233b43083019a6bb6e85446142e265f53aab6fcc194f8e82a2009b82d712a7",
         "spreadsheetid": "1LnMqx3_asVapXNu8PP5UsmxL7GQRTPddcHUejHoWcnA",
+        "join_role": 876374958190755850,
         "public": 183054359,
         "chat_id": 104,
         "roles_id": {
@@ -20,7 +21,7 @@
             "project_user": 569629869236027432
         }
     },
-    "now_date": "25.07.2021",
+    "now_date": "02.09.2021",
     "spreadsheetid": "1LnMqx3_asVapXNu8PP5UsmxL7GQRTPddcHUejHoWcnA",
     "TOKEN": "NTE0MTExNjc4ODQ2MDc0ODkw.Xd2J3w.mGizo4ak6dKR1IL-wgAOdyQn5GU"
 }
