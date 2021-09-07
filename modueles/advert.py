@@ -66,7 +66,7 @@ class Advert(commands.Cog, name="Объявления"):
         
         if self.extra:
             embed.add_field(name='Дополнительная информация:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
         embed.set_image(url=random.choices(self.images)[0])
@@ -116,7 +116,7 @@ class Advert(commands.Cog, name="Объявления"):
         
         if self.extra:
             embed.add_field(name='Дополнительная информация:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
         embed.set_image(url=random.choices(self.images)[0])
@@ -173,7 +173,7 @@ class Advert(commands.Cog, name="Объявления"):
         
         if self.extra:
             embed.add_field(name='Дополнительная информация:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
         embed.set_image(url="http://transport-games.ru/uploads/monthly_2018_07/6JMdhKPfo3c.jpg.6d0e9eb9cf28d4eb8e4e13bce3af78ed.jpg")
@@ -227,7 +227,7 @@ class Advert(commands.Cog, name="Объявления"):
 
         if self.extra:
             embed.add_field(name='Дополнительно:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
         embed.set_image(url=self.data[5] if (5 < len(self.data)) else random.choices(self.images)[0])
@@ -272,7 +272,7 @@ class Advert(commands.Cog, name="Объявления"):
 
         if self.extra:
             embed.add_field(name='Дополнительно:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
         embed.description = 'Приносим свои извинения за предоставленные неудобства.'
@@ -330,7 +330,7 @@ class Advert(commands.Cog, name="Объявления"):
         
         if self.extra:
             embed.add_field(name='Дополнительно:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
 
@@ -389,7 +389,7 @@ class Advert(commands.Cog, name="Объявления"):
     
         if self.extra:
             embed.add_field(name='Дополнительно:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
         embed.set_image(url=self.data[4] if (4 < len(self.data)) else random.choices(self.images)[0])
@@ -439,7 +439,7 @@ class Advert(commands.Cog, name="Объявления"):
     
         if self.extra:
             embed.add_field(name='Дополнительно:',
-                            value=self.extra[0][0],
+                            value=self.extra[0],
                             inline=False)
 
         embed.set_image(url=self.data[7] if (7 < len(self.data)) else random.choices(self.images)[0])
