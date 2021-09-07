@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 # /Procfile
 # /requirements.txt
@@ -13,4 +14,21 @@
 /env/
 /logs/
 /.idea/
+=======
+
+# /Procfile
+# /requirements.txt
+# /stuff/config.json
+# /stuff/credentials.json
+
+/__pycache__/
+/funtions/__pycache__/
+/language/__pycache__/
+/modueles/__pycache__/
+
+# /stuff/
+/env/
+/logs/
+/.idea/
+>>>>>>> 75b13045fc71e61cb736d610ba0be5d6d89e8926
 /.vscode/
