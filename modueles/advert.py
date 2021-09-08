@@ -519,4 +519,4 @@ class Advert(commands.Cog, name="Объявления"):
             embed = self.another()
         
         
-        await ctx.send(content="||@here||", embed=embed)
+        await ctx.send(content="||@everyone||", embed=embed)
