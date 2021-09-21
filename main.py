@@ -6,7 +6,7 @@ from modueles.main_commands import MainCommands
 from modueles.ban_system import Ban
 from modueles.advert import Advert
 from models import *
-from peewee import JOIN
+from discord_slash import SlashCommand
 import functions.embeds
 import requests
 import datetime
@@ -21,6 +21,7 @@ import io
 intents = discord.Intents.all()
 
 client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'], intents=intents)
+slash = SlashCommand(client, sync_commands=True)
 
 logger = logging.getLogger("main")
 logger.setLevel(logging.INFO)
@@ -64,10 +65,10 @@ class Katherine(object):
         self.on_ready()
         self.events()
 
-        self.client.add_cog(MainCommands(client))
         self.client.add_cog(Status(client))
         self.client.add_cog(Ban(client))
         self.client.add_cog(Advert(client))
+        self.client.load_extension("modueles.main_commands")
 
     @staticmethod
     async def on_news(message):
