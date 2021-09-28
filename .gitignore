@@ -1,16 +1,12 @@
-
-# /Procfile
-# /requirements.txt
-# /stuff/config.json
-# /stuff/credentials.json
+/Procfile
+/requirements.txt
 
 /__pycache__/
 /funtions/__pycache__/
 /language/__pycache__/
 /modueles/__pycache__/
 
-# /stuff/
-/env/
+/stuff/
 /venv/
 /logs/
 /.idea/

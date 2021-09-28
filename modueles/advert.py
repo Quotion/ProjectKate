@@ -5,6 +5,7 @@ import discord
 import httplib2
 import googleapiclient.discovery
 
+from collections import namedtuple
 from discord.ext import commands
 from oauth2client.service_account import ServiceAccountCredentials
 
@@ -41,12 +42,20 @@ class Advert(commands.Cog, name="Объявления"):
         self.session = vk_api.VkApi(token=self.TOKEN_VK)
         self.vk = self.session.get_api()
 
-        self.images = [
+        Images = namedtuple('Images', 'multiplayer meeting techwork update')
+        self.images = Images(
+            "https://i.ibb.co/t2fRcX6/multiplayer.jpg",
+            "https://i.ibb.co/vVbwfpm/sobranie.jpg",
+            "https://i.ibb.co/Vq5jd2w/techwork.jpg",
+            "https://i.ibb.co/411Szyc/update.jpg"
+        )
+
+        self.random_images = {
             "https://i.ibb.co/Sn0Dbgt/photo-2021-08-22-11-08-02.jpg",
             "https://i.ibb.co/xsx59fZ/photo-2021-08-22-11-07-22.jpg",
             "https://i.ibb.co/2nX58S5/photo-2021-08-22-11-07-40.jpg",
             "https://i.ibb.co/kHWj12p/photo-2021-08-22-11-08-19.jpg"
-        ]
+        }
 
     def multiplayer(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(97, 152, 255),
@@ -69,7 +78,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0],
                             inline=False)
 
-        embed.set_image(url=random.choices(self.images)[0])
+        embed.set_image(url=self.images.multiplayer)
 
         embed.set_footer(text="Приятной игры!")
 
@@ -97,6 +106,119 @@ class Advert(commands.Cog, name="Объявления"):
                                     from_group=1, 
                                     message=text + extra, 
                                     attachments="photo-183054359_457239021")
+
+    def user_multiplayer(self):
+        embed = discord.Embed(colour=discord.Colour.from_rgb(23, 0, 235),
+                              title=f'{self.data[1]} Пользовательский Мультиплеер {self.data[2]}',
+                              url=self.data[5])
+        
+        embed.add_field(name='Общие положения:',
+                        value=f'`Время сбора`: **{self.data[3]}** по МСК' \
+                              f'\n`Время начала`: **{self.data[4]}** по МСК',
+                        inline=False)
+
+        embed.add_field(name='Основная информация:',
+                        value=f'`ТЧД`: **{self.data[6]}**\n`Маршрут`: **{self.data[7]}**' \
+                              f'\n`Участок`: **{self.data[8]}**\n`Электрификация`: **{self.data[9]}**' \
+                              f'\n`Время`: **{self.data[10]}**',
+                        inline=False)
+        
+        if self.extra:
+            embed.add_field(name='Дополнительная информация:',
+                            value=self.extra[0],
+                            inline=False)
+
+        embed.set_image(url=random.choices(self.random_images)[0])
+
+        embed.set_footer(text="Приятной игры!")
+
+        return embed
+
+    
+    def user_multiplayer_vk(self):
+        text = f'🚞{self.data[1]} Пользовательский Мультиплеер {self.data[2]}🚞' \
+               f'\nВремя сбора: {self.data[3]} по МСК' \
+               f'\nВремя начала: {self.data[4]} по МСК' \
+               f'\n\nИнформация о смене:' \
+               f'\nТЧД: {self.data[6]}' \
+               f'\nМаршрут: {self.data[7]}' \
+               f'\nУчасток: {self.data[8]}' \
+               f'\nЭлектрификация: {self.data[9]}' \
+               f'\nВремя: {self.data[10]}' \
+               f'\n\n{self.data[5]}'    
+
+        if self.extra:
+            extra = f'\n\nДополнительно:' \
+                    f'\n{self.extra[0]}'
+        else:
+            extra = ''
+
+        post_id = self.vk.wall.post(owner_id=-183054359, 
+                                    from_group=1, 
+                                    message=text + extra, 
+                                    attachments="photo-183054359_457239037")
+
+        post = f'wall-{self.public}_{post_id}'
+
+        self.vk.messages.send(chat_id=self.chat_id,
+                              random=12,
+                              attachments=post)
+    
+    def metro_multiplayer(self):
+        embed = discord.Embed(colour=discord.Colour.from_rgb(0, 238, 255),
+                              title=f'{self.data[1]} Мультиплеер Метрополитена {self.data[2]}',
+                              url=self.data[5])
+        
+        embed.add_field(name='Общие положения:',
+                        value=f'`Время сбора`: **{self.data[3]}** по МСК' \
+                              f'\n`Время начала`: **{self.data[4]}** по МСК',
+                        inline=False)
+
+        embed.add_field(name='Основная информация:',
+                        value=f'`Организатор`: **{self.data[6]}**\n`Карта`: **{self.data[7]}**' \
+                              f'\n`Участок`: **{self.data[8]}**\n`Частота дешифратор`: **{self.data[9]}**' \
+                              f'\n`Вагонов на человека`: **{self.data[10]}**',
+                        inline=False)
+        
+        if self.extra:
+            embed.add_field(name='Дополнительная информация:',
+                            value=self.extra[0],
+                            inline=False)
+
+        embed.set_image(url="http://transport-games.ru/uploads/monthly_2018_07/6JMdhKPfo3c.jpg.6d0e9eb9cf28d4eb8e4e13bce3af78ed.jpg")
+
+        embed.set_footer(text="Приятной игры!")
+
+        return embed
+
+    def metro_multiplayer_vk(self):
+        text = f'🚞{self.data[1]} Мультиплеер Метрополитена {self.data[2]}🚞' \
+               f'\nВремя сбора: {self.data[3]} по МСК' \
+               f'\nВремя начала: {self.data[4]} по МСК' \
+               f'\n\nИнформация о смене:' \
+               f'\nОрганизатор: {self.data[6]}' \
+               f'\nКарта: {self.data[7]}' \
+               f'\nУчасток: {self.data[8]}' \
+               f'\nЧастота дешифратор: {self.data[9]}' \
+               f'\nВагонов на человека: {self.data[10]}' \
+               f'\n\n{self.data[5]}'    
+
+        if self.extra:
+            extra = f'\n\nДополнительно:' \
+                    f'\n{self.extra[0]}'
+        else:
+            extra = ''
+
+        post_id = self.vk.wall.post(owner_id=-183054359, 
+                                    from_group=1, 
+                                    message=text + extra, 
+                                    attachments="photo-183054359_457239030")
+
+        post = f'wall-{self.public}_{post_id}'
+
+        self.vk.messages.send(chat_id=self.chat_id,
+                              random=12,
+                              attachments=post)
     
     def meeting(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(81, 255, 0),
@@ -117,7 +239,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0],
                             inline=False)
 
-        embed.set_image(url=self.data[5] if (5 < len(self.data)) else random.choices(self.images)[0])
+        embed.set_image(url=self.images.meeting)
 
         embed.set_footer(text="Ждём Вас!")
 
@@ -164,7 +286,7 @@ class Advert(commands.Cog, name="Объявления"):
 
         embed.description = 'Приносим свои извинения за предоставленные неудобства.'
 
-        embed.set_image(url=self.data[4] if (4 < len(self.data)) else random.choices(self.images)[0])
+        embed.set_image(url=self.images.techwork)
 
         embed.set_footer(text="Скоро все починим!")
 
@@ -221,7 +343,7 @@ class Advert(commands.Cog, name="Объявления"):
                             inline=False)
 
 
-        embed.set_image(url=self.data[5] if (5 < len(self.data)) else random.choices(self.images)[0])
+        embed.set_image(url=self.images.update)
 
         embed.set_footer(text="Приятной игры!")
 
@@ -329,32 +451,26 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0],
                             inline=False)
 
-        embed.set_image(url=self.data[7] if (len(self.data) < 7) else random.choices(self.images)[0])
+        embed.set_image(url=self.data[7] if (7 < len(self.data)) else random.choices(self.images)[0])
 
         embed.set_footer(text="Ждем Вас!")
 
         return embed
     
     def another(self):
-        embed = None
-        try:
-            embed = discord.Embed(colour=discord.Colour.from_rgb(255, 255, 255),
-                                  title=self.data[1],
-                                  url=self.data[2])
-        except IndexError:
-            embed = discord.Embed(colour=discord.Colour.from_rgb(255, 255, 255),
-                                  title=self.data[1])
+        embed = discord.Embed(colour=discord.Colour.from_rgb(255, 255, 255),
+                              title=self.data[1],
+                              url=self.data[2] if self.data[2] else None)
     
         if self.extra:
             embed.add_field(name='Основная информация:',
                             value=self.extra[0],
                             inline=False)
-        try:
-            embed.set_image(url=self.data[3])
-        except IndexError:
-            embed.set_image(url=random.choices(self.images)[0])
+
+        embed.set_image(url=self.data[3] if (3 < len(self.data)) else random.choices(self.images)[0])
 
         embed.set_footer(text="Ваш MaDaDev RTS!")
+        
 
         return embed
 
@@ -412,4 +528,4 @@ class Advert(commands.Cog, name="Объявления"):
             embed = self.another()
         
         
-        await ctx.send(content="||@everyone||", embed=embed)
+        await ctx.send(content="||@here||", embed=embed)

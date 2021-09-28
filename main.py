@@ -21,7 +21,7 @@ import io
 intents = discord.Intents.all()
 
 client = Bot(command_prefix=['к!', 'К!', 'k!', 'K!'], intents=intents)
-slash = SlashCommand(client, sync_commands=True)
+slash = SlashCommand(client, sync_commands=True, sync_on_cog_reload=True, override_type=True)
 
 logger = logging.getLogger("main")
 logger.setLevel(logging.INFO)

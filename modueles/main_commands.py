@@ -7,9 +7,6 @@ from valve.rcon import *
 
 import discord
 from discord.ext import commands, tasks
-from discord_slash import cog_ext, SlashContext
-from discord_slash.model import SlashCommandPermissionType
-from discord_slash.utils.manage_commands import create_option, create_permission
 from models import *
 from peewee import fn, JOIN
 import random
@@ -257,27 +254,17 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                                                     "даже если они не добавили Вас в друзья."))
             self.logger.warning("Unable to send message. Not enough rights. Forbidden.")
 
-    @cog_ext.cog_slash(name="промокод",
-                       description="Активируется промокод",
-                       options=[
-                           create_option(
-                               name="code",
-                               description="Код промокода",
-                               option_type=4,
-                               required=False
-                           )
-                       ])
+    @commands.command(name="промокод",
+                      help="Данные которые нужны для использования этой команды:"
+                           "\n<promo>: промокод.",
+                      brief="<префикс>промокод или <префикс>промокод 123456",
+                      description="Команда, позволяющая активировать промокод.")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.check(open_connect)
-    async def promocode(self, ctx: SlashContext, code: int = None):
+    async def promocode(self, ctx, code: int = None):
         await self.profile_check(ctx.author)
 
         if code:
-            if not code.isdigit():
-                await ctx.send(embed=await functions.embeds.description("Промокод введен неверно.",
-                                                                        "Проверьте нет ли символов или иных"
-                                                                        "знаков в числе обозначющим промокод."))
-                return
-
             if code == 0 or code == 1:
                 await ctx.send(embed=await functions.embeds.description("Запрещенные команды.",
                                                                         "Так делать нельзя."))
@@ -331,18 +318,15 @@ class MainCommands(commands.Cog, name="Основные команды"):
         else:
             promocode_info.delete_instance()
 
-    @cog_ext.cog_slash(name='профиль',
-                       description="Вывести свой профиль",
-                       options=[
-                           create_option(
-                               name="user",
-                               description="Допольнительный параметр - пользователь",
-                               option_type=6,
-                               required=False
-                           )
-                       ])
+    @commands.command(name='профиль',
+                      help="Дополнительные аргументы в этой команде могут быть использованы, только если вам нужно "
+                           "узнать профиль другого участника сервера.",
+                      brief="<префикс>профиль @Chell",
+                      description="С помощью этой команды вы можете узнать всю информацию о себе, а также просмотреть "
+                                  "информацию о другом участнике.")
+    @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.check(open_connect)
-    async def profile(self, ctx: SlashContext, user: discord.Member = None):
+    async def profile(self, ctx, user: discord.Member = None):
         await self.profile_check(ctx.author)
 
         now = datetime.datetime.now()
@@ -686,13 +670,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
         msgs_deleted.close()
         os.remove("stuff/purgedeleted.txt")
 
-    @cog_ext.cog_slash(name='шанс',
-                       description="Команда для получения трехразовой ежедневной приыбли")
-    # @commands.command(name='шанс',
-    #                   help="Дополнительные аргументы в этой команде не нужны.",
-    #                   brief="<префикс>шанс",
-    #                   description="Команда для получения ежедневной прибыли (3 раза в день).")
-    # @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.command(name='шанс',
+                      help="Дополнительные аргументы в этой команде не нужны.",
+                      brief="<префикс>шанс",
+                      description="Команда для получения ежедневной прибыли (3 раза в день).")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.check(open_connect)
     async def chance(self, ctx):
         await self.profile_check(ctx.author)
@@ -744,21 +726,13 @@ class MainCommands(commands.Cog, name="Основные команды"):
     # @commands.cooldown(1, 5, commands.BucketType.user)
     # @commands.check(open_connect)
 
-    @cog_ext.cog_slash(name='рулетка',
-                       description='Получение рандомного выиграша со ставки',
-                       options=[
-                           create_option(
-                               name='rate',
-                               description='Ставка',
-                               option_type=4,
-                               required=True)
-                       ])
-    # @commands.command(name='рулетка',
-    #                   help="Данные которые нужны для использования этой команды:"
-    #                        "\n<rate>: Количество зл. реверсивок для использования команды.",
-    #                   brief="<префикс>рулетка 1000",
-    #                   description="Команда для получения рандомного выигрыша, в зафисимости от коэффициента")
-    # @commands.cooldown(1, 5, commands.BucketType.user)
+
+    @commands.command(name='рулетка',
+                      help="Данные которые нужны для использования этой команды:"
+                           "\n<rate>: Количество зл. реверсивок для использования команды.",
+                      brief="<префикс>рулетка 1000",
+                      description="Команда для получения рандомного выигрыша, в зафисимости от коэффициента")
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.check(open_connect)
     async def roulette(self, ctx, rate: int):
         if rate > 1000000:
@@ -806,12 +780,10 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         await ctx.send(embed=await functions.embeds.roullete(ctx, text, gif))
 
-    @cog_ext.cog_slash(name='топ',
-                       description="Топ игроков по часам на сервере.")
-    # @commands.command(name='топ',
-    #                   help="Дополнительные аргументы в этой команде не нужны.",
-    #                   brief="<префикс>топ",
-    #                   description="Команда для получения топа игроков сервера по часам.")
+    @commands.command(name='топ',
+                      help="Дополнительные аргументы в этой команде не нужны.",
+                      brief="<префикс>топ",
+                      description="Команда для получения топа игроков сервера по часам.")
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.check(open_connect)
     async def top(self, ctx):
@@ -847,20 +819,11 @@ class MainCommands(commands.Cog, name="Основные команды"):
 
         await ctx.send(embed=embed)
 
-    @cog_ext.cog_slash(name='обмен',
-                       description='Обмен реверсивок с коэффициентом 4:1',
-                       options=[
-                           create_option(
-                               name='money',
-                               description='Реверсивки',
-                               option_type=4,
-                               required=True)
-                       ])
-    # @commands.command(name='обмен',
-    #                   help="Данные которые нужны для использования этой команды:"
-    #                        "\n<revers>: Количество реверсивок на обмен.",
-    #                   brief="<префикс>обмен 2000",
-    #                   description="Команда, позволяющая обменять 4 обычных реверсивки на 1 золотой реверсивки.")
+    @commands.command(name='обмен',
+                      help="Данные которые нужны для использования этой команды:"
+                           "\n<revers>: Количество реверсивок на обмен.",
+                      brief="<префикс>обмен 2000",
+                      description="Команда, позволяющая обменять 4 обычных реверсивки на 1 золотой реверсивки.")
     @commands.check(open_connect)
     async def swap(self, ctx, money: int):
         await self.profile_check(ctx.author)
