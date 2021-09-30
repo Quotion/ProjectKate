@@ -401,7 +401,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0],
                             inline=False)
 
-        embed.set_image(url=self.data[4] if (4 < len(self.data)) else random.choices(self.images)[0])
+        embed.set_image(url=self.data[4] if (4 < len(self.data)) else random.choices(self.random_images)[0])
 
         embed.set_footer(text="Удачи!")
 
@@ -451,7 +451,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0],
                             inline=False)
 
-        embed.set_image(url=self.data[7] if (7 < len(self.data)) else random.choices(self.images)[0])
+        embed.set_image(url=self.data[7] if (7 < len(self.data)) else random.choices(self.random_images)[0])
 
         embed.set_footer(text="Ждем Вас!")
 
@@ -467,7 +467,7 @@ class Advert(commands.Cog, name="Объявления"):
                             value=self.extra[0],
                             inline=False)
 
-        embed.set_image(url=self.data[3] if (3 < len(self.data)) else random.choices(self.images)[0])
+        embed.set_image(url=self.data[3] if (3 < len(self.data)) else random.choices(self.random_images)[0])
 
         embed.set_footer(text="Ваш MaDaDev RTS!")
         
