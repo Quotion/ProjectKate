@@ -1,5 +1,5 @@
-# /Procfile
-# /requirements.txt
+/Procfile
+/requirements.txt
 
 /__pycache__/
 /funtions/__pycache__/
