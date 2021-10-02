@@ -322,7 +322,7 @@ class Advert(commands.Cog, name="Объявления"):
 
     def update_game(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(238, 255, 0),
-                              title=f'Обновление сборки',\
+                              title=f'Обновление сборки',
                               url=self.data[3])
         
         embed.add_field(name='Дата:',
@@ -343,7 +343,6 @@ class Advert(commands.Cog, name="Объявления"):
             embed.add_field(name='Дополнительно:',
                             value=self.extra[0],
                             inline=False)
-
 
         embed.set_image(url=self.images.update)
 
@@ -387,7 +386,7 @@ class Advert(commands.Cog, name="Объявления"):
         embed = discord.Embed(colour=discord.Colour.from_rgb(255, 0, 81),
                               title=f'Заявки на должности!')
         
-        embed.add_field(name='Основная информация по заявка на должность работам:',
+        embed.add_field(name='Основная информация по заявкам на должности:',
                         value=f'Дорогие участники проекта MaDaDev RTS!🎉',
                         inline=False)
 
@@ -472,7 +471,6 @@ class Advert(commands.Cog, name="Объявления"):
         embed.set_image(url=self.data[3] if (3 < len(self.data)) else random.choices(self.random_images)[0])
 
         embed.set_footer(text="Ваш MaDaDev RTS!")
-        
 
         return embed
 

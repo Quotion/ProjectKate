@@ -331,8 +331,9 @@ class Katherine(object):
                 message = await channel.fetch_message(json["madadev"]["message_advert"])
 
                 if payload.message_id != json["madadev"]["message_advert"] or \
-                        not payload.member.permissions_in(request_channel).manage_channels or \
-                        not payload.member.permissions_in(request_channel).administrator:
+                        (not payload.member.permissions_in(request_channel).manage_channels and \
+                         not payload.member.permissions_in(request_channel).administrator):
+                    await message.remove_reaction(payload.emoji, payload.member)
                     return
 
                 role_access = guild.get_role(json["madadev"]["join_role"])
@@ -345,21 +346,21 @@ class Katherine(object):
                     embed.description = f"Заявки на [{json['madadev']['info']['name']} Мультиплеер]({message.jump_url})" \
                                         f" {json['madadev']['info']['date']} объявляются `ОТКРЫТЫМИ`!"
 
-                    request_channel.set_permissions(role_access, send_messages=True)
+                    await request_channel.set_permissions(role_access, send_messages=True)
 
                 if payload.emoji.name == json["madadev"]["reactions"]["close"]:
                     embed.colour = discord.Colour.red()
                     embed.description = f"Заявки на {json['madadev']['info']['name']} Мультиплеер " \
                                         f"{json['madadev']['info']['date']} объявляются `ЗАКРЫТЫМИ`!"
 
-                    request_channel.set_permissions(role_access, send_messages=False)
+                    await request_channel.set_permissions(role_access, send_messages=False)
 
                 if payload.emoji.name == json["madadev"]["reactions"]["finish"]:
                     embed.colour = discord.Colour.dark_red()
                     embed.description = f"{json['madadev']['info']['name']} Мультиплеер " \
                                         f"{json['madadev']['info']['date']} `ЗАВЕРШЕН`!"
 
-                await request_channel.send(embed=embed)
+                await request_channel.send(content=None, embed=embed)
                 await message.remove_reaction(payload.emoji, payload.member)
 
         @self.client.event
