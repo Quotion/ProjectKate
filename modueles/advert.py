@@ -1,7 +1,6 @@
 import random
 import json
 
-import logger
 import logging
 import discord
 import httplib2
