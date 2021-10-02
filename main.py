@@ -331,7 +331,7 @@ class Katherine(object):
                 message = await channel.fetch_message(json["madadev"]["message_advert"])
 
                 if payload.message_id != json["madadev"]["message_advert"] or \
-                        not payload.member.permissions_in(request_channel).administrator:
+                        not payload.member.permissions_in(request_channel).manage_channels:
                     return
 
                 role_access = guild.get_role(json["madadev"]["join_role"])
