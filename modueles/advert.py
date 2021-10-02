@@ -1,6 +1,8 @@
 import random
 import json
-import vk_api
+
+import logger
+import logging
 import discord
 import httplib2
 import googleapiclient.discovery
@@ -9,7 +11,9 @@ from collections import namedtuple
 from discord.ext import commands
 from oauth2client.service_account import ServiceAccountCredentials
 
-from pprint import pprint
+
+logger = logging.getLogger("main_commands")
+logger.setLevel(logging.INFO)
 
 
 class Advert(commands.Cog, name="Объявления"):
@@ -19,13 +23,12 @@ class Advert(commands.Cog, name="Объявления"):
         self.client = client
         self.simbols = [":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:", ":ten:"]
 
-
         with open('stuff/config.json', 'r', encoding='utf8') as config:
             js = json.load(config)
-            self.SPREADSHEET_ID = js['gorails']['spreadsheetid']
-            self.TOKEN_VK = js['gorails']['TOKEN_VK']
-            self.public = js['gorails']['public']
-            self.chat_id = js['gorails']['chat_id']
+            self.SPREADSHEET_ID = js['spreadsheetid']
+            # self.TOKEN_VK = js['madadev']['TOKEN_VK']
+            # self.public = js['madadev']['public']
+            # self.chat_id = js['madadev']['chat_id']
 
         self.CREDENTIALS_FILE = 'stuff/credentials.json'
         self.SCOPES = ['https://www.googleapis.com/auth/spreadsheets',
@@ -39,8 +42,8 @@ class Advert(commands.Cog, name="Объявления"):
         self.service = googleapiclient.discovery.build(
             'sheets', 'v4', http=httpAuth, cache_discovery=False)
 
-        self.session = vk_api.VkApi(token=self.TOKEN_VK)
-        self.vk = self.session.get_api()
+        # self.session = vk_api.VkApi(token=self.TOKEN_VK)
+        # self.vk = self.session.get_api()
 
         Images = namedtuple('Images', 'multiplayer meeting techwork update')
         self.images = Images(
@@ -84,28 +87,28 @@ class Advert(commands.Cog, name="Объявления"):
 
         return embed
     
-    def multiplayer_vk(self):
-        text = f'🚂{self.data[1]} Мультиплеер {self.data[2]}🚂' \
-               f'\nВремя сбора: {self.data[3]} по МСК' \
-               f'\nВремя начала: {self.data[4]} по МСК' \
-               f'\n\nИнформация о смене:' \
-               f'\nТЧД: {self.data[6]}' \
-               f'\nМаршрут: {self.data[7]}' \
-               f'\nУчасток: {self.data[8]}' \
-               f'\nЭлектрификация: {self.data[9]}' \
-               f'\nВремя: {self.data[10]}' \
-               f'\n\n{self.data[5]}'   
-
-        if self.extra:
-            extra = f'\n\nДополнительно:' \
-                    f'\n{self.extra[0]}'
-        else:
-            extra = ''
-
-        post_id = self.vk.wall.post(owner_id=-183054359, 
-                                    from_group=1, 
-                                    message=text + extra, 
-                                    attachments="photo-183054359_457239021")
+    # def multiplayer_vk(self):
+    #     text = f'🚂{self.data[1]} Мультиплеер {self.data[2]}🚂' \
+    #            f'\nВремя сбора: {self.data[3]} по МСК' \
+    #            f'\nВремя начала: {self.data[4]} по МСК' \
+    #            f'\n\nИнформация о смене:' \
+    #            f'\nТЧД: {self.data[6]}' \
+    #            f'\nМаршрут: {self.data[7]}' \
+    #            f'\nУчасток: {self.data[8]}' \
+    #            f'\nЭлектрификация: {self.data[9]}' \
+    #            f'\nВремя: {self.data[10]}' \
+    #            f'\n\n{self.data[5]}'
+    #
+    #     if self.extra:
+    #         extra = f'\n\nДополнительно:' \
+    #                 f'\n{self.extra[0]}'
+    #     else:
+    #         extra = ''
+    #
+    #     post_id = self.vk.wall.post(owner_id=-183054359,
+    #                                 from_group=1,
+    #                                 message=text + extra,
+    #                                 attachments="photo-183054359_457239021")
 
     def user_multiplayer(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(23, 0, 235),
@@ -135,34 +138,34 @@ class Advert(commands.Cog, name="Объявления"):
         return embed
 
     
-    def user_multiplayer_vk(self):
-        text = f'🚞{self.data[1]} Пользовательский Мультиплеер {self.data[2]}🚞' \
-               f'\nВремя сбора: {self.data[3]} по МСК' \
-               f'\nВремя начала: {self.data[4]} по МСК' \
-               f'\n\nИнформация о смене:' \
-               f'\nТЧД: {self.data[6]}' \
-               f'\nМаршрут: {self.data[7]}' \
-               f'\nУчасток: {self.data[8]}' \
-               f'\nЭлектрификация: {self.data[9]}' \
-               f'\nВремя: {self.data[10]}' \
-               f'\n\n{self.data[5]}'    
-
-        if self.extra:
-            extra = f'\n\nДополнительно:' \
-                    f'\n{self.extra[0]}'
-        else:
-            extra = ''
-
-        post_id = self.vk.wall.post(owner_id=-183054359, 
-                                    from_group=1, 
-                                    message=text + extra, 
-                                    attachments="photo-183054359_457239037")
-
-        post = f'wall-{self.public}_{post_id}'
-
-        self.vk.messages.send(chat_id=self.chat_id,
-                              random=12,
-                              attachments=post)
+    # def user_multiplayer_vk(self):
+    #     text = f'🚞{self.data[1]} Пользовательский Мультиплеер {self.data[2]}🚞' \
+    #            f'\nВремя сбора: {self.data[3]} по МСК' \
+    #            f'\nВремя начала: {self.data[4]} по МСК' \
+    #            f'\n\nИнформация о смене:' \
+    #            f'\nТЧД: {self.data[6]}' \
+    #            f'\nМаршрут: {self.data[7]}' \
+    #            f'\nУчасток: {self.data[8]}' \
+    #            f'\nЭлектрификация: {self.data[9]}' \
+    #            f'\nВремя: {self.data[10]}' \
+    #            f'\n\n{self.data[5]}'
+    #
+    #     if self.extra:
+    #         extra = f'\n\nДополнительно:' \
+    #                 f'\n{self.extra[0]}'
+    #     else:
+    #         extra = ''
+    #
+    #     post_id = self.vk.wall.post(owner_id=-183054359,
+    #                                 from_group=1,
+    #                                 message=text + extra,
+    #                                 attachments="photo-183054359_457239037")
+    #
+    #     post = f'wall-{self.public}_{post_id}'
+    #
+    #     self.vk.messages.send(chat_id=self.chat_id,
+    #                           random=12,
+    #                           attachments=post)
     
     def metro_multiplayer(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(0, 238, 255),
@@ -191,34 +194,34 @@ class Advert(commands.Cog, name="Объявления"):
 
         return embed
 
-    def metro_multiplayer_vk(self):
-        text = f'🚞{self.data[1]} Мультиплеер Метрополитена {self.data[2]}🚞' \
-               f'\nВремя сбора: {self.data[3]} по МСК' \
-               f'\nВремя начала: {self.data[4]} по МСК' \
-               f'\n\nИнформация о смене:' \
-               f'\nОрганизатор: {self.data[6]}' \
-               f'\nКарта: {self.data[7]}' \
-               f'\nУчасток: {self.data[8]}' \
-               f'\nЧастота дешифратор: {self.data[9]}' \
-               f'\nВагонов на человека: {self.data[10]}' \
-               f'\n\n{self.data[5]}'    
-
-        if self.extra:
-            extra = f'\n\nДополнительно:' \
-                    f'\n{self.extra[0]}'
-        else:
-            extra = ''
-
-        post_id = self.vk.wall.post(owner_id=-183054359, 
-                                    from_group=1, 
-                                    message=text + extra, 
-                                    attachments="photo-183054359_457239030")
-
-        post = f'wall-{self.public}_{post_id}'
-
-        self.vk.messages.send(chat_id=self.chat_id,
-                              random=12,
-                              attachments=post)
+    # def metro_multiplayer_vk(self):
+    #     text = f'🚞{self.data[1]} Мультиплеер Метрополитена {self.data[2]}🚞' \
+    #            f'\nВремя сбора: {self.data[3]} по МСК' \
+    #            f'\nВремя начала: {self.data[4]} по МСК' \
+    #            f'\n\nИнформация о смене:' \
+    #            f'\nОрганизатор: {self.data[6]}' \
+    #            f'\nКарта: {self.data[7]}' \
+    #            f'\nУчасток: {self.data[8]}' \
+    #            f'\nЧастота дешифратор: {self.data[9]}' \
+    #            f'\nВагонов на человека: {self.data[10]}' \
+    #            f'\n\n{self.data[5]}'
+    #
+    #     if self.extra:
+    #         extra = f'\n\nДополнительно:' \
+    #                 f'\n{self.extra[0]}'
+    #     else:
+    #         extra = ''
+    #
+    #     post_id = self.vk.wall.post(owner_id=-183054359,
+    #                                 from_group=1,
+    #                                 message=text + extra,
+    #                                 attachments="photo-183054359_457239030")
+    #
+    #     post = f'wall-{self.public}_{post_id}'
+    #
+    #     self.vk.messages.send(chat_id=self.chat_id,
+    #                           random=12,
+    #                           attachments=post)
     
     def meeting(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(81, 255, 0),
@@ -245,29 +248,29 @@ class Advert(commands.Cog, name="Объявления"):
 
         return embed
     
-    def meeting_vk(self):
-        text = f'Дорогие участники проекта MaDaDev RTS!📢' \
-               f'\n\n{self.data[2]} в {self.data[3]} по МСК на нашем Discord сервере состоится '\
-               f'общее собрание участников. Сделаем пару объявлений, а так же ответим на все ваши вопросы!👥' \
-               f'\nЖдём всех!❤' \
-               f'\n\nкНаш Discord - https://discord.gg/Uhs5zbF5uQ ☎'
-
-        if self.extra:
-            extra = f'\n\nДополнительно:' \
-                    f'\n{self.extra[0]}'
-        else: 
-            extra = '' 
-
-        post_id = self.vk.wall.post(owner_id=-183054359, 
-                                    from_group=1, 
-                                    message=text + extra, 
-                                    attachments="photo-183054359_457239029")
-
-        post = f'wall-{self.public}_{post_id}'
-
-        self.vk.messages.send(chat_id=self.chat_id,
-                              random=12,
-                              attachments=post)
+    # def meeting_vk(self):
+    #     text = f'Дорогие участники проекта MaDaDev RTS!📢' \
+    #            f'\n\n{self.data[2]} в {self.data[3]} по МСК на нашем Discord сервере состоится '\
+    #            f'общее собрание участников. Сделаем пару объявлений, а так же ответим на все ваши вопросы!👥' \
+    #            f'\nЖдём всех!❤' \
+    #            f'\n\nкНаш Discord - https://discord.gg/Uhs5zbF5uQ ☎'
+    #
+    #     if self.extra:
+    #         extra = f'\n\nДополнительно:' \
+    #                 f'\n{self.extra[0]}'
+    #     else:
+    #         extra = ''
+    #
+    #     post_id = self.vk.wall.post(owner_id=-183054359,
+    #                                 from_group=1,
+    #                                 message=text + extra,
+    #                                 attachments="photo-183054359_457239029")
+    #
+    #     post = f'wall-{self.public}_{post_id}'
+    #
+    #     self.vk.messages.send(chat_id=self.chat_id,
+    #                           random=12,
+    #                           attachments=post)
 
     def tech_work(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(255, 0, 81),
@@ -292,31 +295,31 @@ class Advert(commands.Cog, name="Объявления"):
 
         return embed
     
-    def tech_work_vk(self):
-        text = f'‼Уважаемые пользователи‼' \
-               f'\nПроводятся технические работы, сервисы MaDaDev RTS могут быть недоступны.'\
-               f'\n\nПричина: {self.data[2]}' \
-               f'\nПримерное время начала-конца: {self.data[3]}' \
-               f'\n\nПриносим извинения за предоставленные неудобства.' \
-               f'\nС Уважением, Руководитель проекта Louis La Roshelle'
-
-        if self.extra:
-            extra = f'\n\nДополнительно:' \
-                    f'\n{self.extra[0]}'
-        else:
-            extra = ''
-
-
-        post_id = self.vk.wall.post(owner_id=-183054359, 
-                                    from_group=1, 
-                                    message=text + extra, 
-                                    attachments="photo-183054359_457239022")
-
-        post = f'wall-{self.public}_{post_id}'
-
-        self.vk.messages.send(chat_id=self.chat_id,
-                              random=12,
-                              attachments=post)
+    # def tech_work_vk(self):
+    #     text = f'‼Уважаемые пользователи‼' \
+    #            f'\nПроводятся технические работы, сервисы MaDaDev RTS могут быть недоступны.'\
+    #            f'\n\nПричина: {self.data[2]}' \
+    #            f'\nПримерное время начала-конца: {self.data[3]}' \
+    #            f'\n\nПриносим извинения за предоставленные неудобства.' \
+    #            f'\nС Уважением, Руководитель проекта Louis La Roshelle'
+    #
+    #     if self.extra:
+    #         extra = f'\n\nДополнительно:' \
+    #                 f'\n{self.extra[0]}'
+    #     else:
+    #         extra = ''
+    #
+    #
+    #     post_id = self.vk.wall.post(owner_id=-183054359,
+    #                                 from_group=1,
+    #                                 message=text + extra,
+    #                                 attachments="photo-183054359_457239022")
+    #
+    #     post = f'wall-{self.public}_{post_id}'
+    #
+    #     self.vk.messages.send(chat_id=self.chat_id,
+    #                           random=12,
+    #                           attachments=post)
 
     def update_game(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(238, 255, 0),
@@ -349,37 +352,37 @@ class Advert(commands.Cog, name="Объявления"):
 
         return embed
     
-    def update_game_vk(self):
-        
-        themes = self.data[4].split('*')
-
-        start_text = f'Доброго времени суток!👋🏻' \
-               f'\n✅Обновление сборки от {self.data[2]} года!🎉' \
-               f'\n\nНа данный момент были сделаны следующие изменения сборки:\n'
-
-        middle_text = ''.join(f'{i + 1}. {theme}\n' for i, theme in zip(range(0, len(themes)), themes))
-
-        end_text = f'\n\nОбновление:\n{self.data[3]}' \
-                   f'\n\nС уважением, команда MaDaDev❤'
-
-        if self.extra:
-            extra = f'\n\nДополнительно:' \
-                    f'\n{self.extra[0]}'
-        else:
-            extra = ''
-
-        text = start_text + middle_text + end_text + extra 
-
-        post_id = self.vk.wall.post(owner_id=-183054359, 
-                                    from_group=1, 
-                                    message=text, 
-                                    attachments="photo-183054359_457239024")
-        
-        post = f'wall-{self.public}_{post_id}'
-
-        self.vk.messages.send(chat_id=self.chat_id,
-                              random=12,
-                              attachments=post)
+    # def update_game_vk(self):
+    #
+    #     themes = self.data[4].split('*')
+    #
+    #     start_text = f'Доброго времени суток!👋🏻' \
+    #            f'\n✅Обновление сборки от {self.data[2]} года!🎉' \
+    #            f'\n\nНа данный момент были сделаны следующие изменения сборки:\n'
+    #
+    #     middle_text = ''.join(f'{i + 1}. {theme}\n' for i, theme in zip(range(0, len(themes)), themes))
+    #
+    #     end_text = f'\n\nОбновление:\n{self.data[3]}' \
+    #                f'\n\nС уважением, команда MaDaDev❤'
+    #
+    #     if self.extra:
+    #         extra = f'\n\nДополнительно:' \
+    #                 f'\n{self.extra[0]}'
+    #     else:
+    #         extra = ''
+    #
+    #     text = start_text + middle_text + end_text + extra
+    #
+    #     post_id = self.vk.wall.post(owner_id=-183054359,
+    #                                 from_group=1,
+    #                                 message=text,
+    #                                 attachments="photo-183054359_457239024")
+    #
+    #     post = f'wall-{self.public}_{post_id}'
+    #
+    #     self.vk.messages.send(chat_id=self.chat_id,
+    #                           random=12,
+    #                           attachments=post)
 
     def request(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(255, 0, 81),
@@ -407,34 +410,34 @@ class Advert(commands.Cog, name="Объявления"):
 
         return embed
 
-    def request_vk(self):
-        
-        vacancies = self.data[2].split('*')
-        links = self.data[3].split('*')
-
-        start_text = f'Доброго времени суток!👋🏻' \
-                     f'\n✅Объявляются открытими заявки на следующие должности:\n\n'
-
-        middle_text = ''.join(f'{i + 1}. [{theme}|{link}]\n' for i, theme, link in zip(range(0, len(vacancies)), vacancies, links))
-
-        if self.extra:
-            extra = f'\n\nДополнительно:' \
-                    f'\n{self.extra[0]}'
-        else:
-            extra = ''
-
-        text = start_text + middle_text + extra
-
-        post_id = self.vk.wall.post(owner_id=-183054359, 
-                                    from_group=1, 
-                                    message=text, 
-                                    attachments="photo-183054359_457239024")
-
-        post = f'wall-{self.public}_{post_id}'
-
-        self.vk.messages.send(chat_id=self.chat_id,
-                              random=12,
-                              attachments=post)
+    # def request_vk(self):
+    #
+    #     vacancies = self.data[2].split('*')
+    #     links = self.data[3].split('*')
+    #
+    #     start_text = f'Доброго времени суток!👋🏻' \
+    #                  f'\n✅Объявляются открытими заявки на следующие должности:\n\n'
+    #
+    #     middle_text = ''.join(f'{i + 1}. [{theme}|{link}]\n' for i, theme, link in zip(range(0, len(vacancies)), vacancies, links))
+    #
+    #     if self.extra:
+    #         extra = f'\n\nДополнительно:' \
+    #                 f'\n{self.extra[0]}'
+    #     else:
+    #         extra = ''
+    #
+    #     text = start_text + middle_text + extra
+    #
+    #     post_id = self.vk.wall.post(owner_id=-183054359,
+    #                                 from_group=1,
+    #                                 message=text,
+    #                                 attachments="photo-183054359_457239024")
+    #
+    #     post = f'wall-{self.public}_{post_id}'
+    #
+    #     self.vk.messages.send(chat_id=self.chat_id,
+    #                           random=12,
+    #                           attachments=post)
                 
     def stream(self):
         embed = discord.Embed(colour=discord.Colour.from_rgb(255, 0, 81),
@@ -481,7 +484,7 @@ class Advert(commands.Cog, name="Объявления"):
     @commands.cooldown(1, 20, commands.BucketType.user)
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
-    async def advert(self, ctx):
+    async def advert(self, ctx, is_multiplayer = False):
         await ctx.message.delete()
 
         main_values = self.service.spreadsheets().values().get(spreadsheetId=self.SPREADSHEET_ID,
@@ -492,24 +495,26 @@ class Advert(commands.Cog, name="Объявления"):
                                                                 range="adverts!C13:E13",
                                                                 majorDimension="COLUMNS").execute()
         
-        
         embed = None
 
         self.data = main_values['values'][0]
         try:
             self.extra = extra_values['values'][0]
-        except:
+        except Exception:
             self.extra = None
 
         if main_values['values'][0][0] == 'Мультиплеер':
             embed = self.multiplayer()
             # self.multiplayer_vk()
+            is_multiplayer = True
         elif main_values['values'][0][0] == 'Пользовательский мультиплеер':
             embed = self.user_multiplayer()
             # self.user_multiplayer_vk()
+            is_multiplayer = True
         elif main_values['values'][0][0] == 'Мультиплеер Метрополитена':
             embed = self.metro_multiplayer()
             # self.metro_multiplayer_vk()
+            is_multiplayer = True
         elif main_values['values'][0][0] == 'Собрание пользователей':
             embed = self.meeting()
             # self.meeting_vk()
@@ -526,6 +531,30 @@ class Advert(commands.Cog, name="Объявления"):
             embed = self.stream()
         elif main_values['values'][0][0] == 'Другое':
             embed = self.another()
-        
-        
-        await ctx.send(content="||@here||", embed=embed)
+
+        message = await ctx.send(embed=embed)
+
+        if not is_multiplayer:
+            return
+
+        with open("stuff/config.json", "r+", encoding="utf8") as file:
+            try:
+                js = json.load(file)
+
+                await message.add_reaction(js["madadev"]["reactions"]["open"])
+                await message.add_reaction(js["madadev"]["reactions"]["close"])
+                await message.add_reaction(js["madadev"]["reactions"]["finish"])
+
+                js["madadev"]["message_advert"] = message.id
+                js["madadev"]["advert_channel"] = ctx.channel.id
+                js["madadev"]["info"]["date"] = self.data[2]
+                js["madadev"]["info"]["name"] = self.data[1]
+
+            except Exception as error:
+                logger.error(error)
+                await message.delete()
+            else:
+                file.seek(0)
+                file.truncate(0)
+            finally:
+                json.dump(js, file, indent=4)

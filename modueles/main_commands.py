@@ -416,10 +416,7 @@ class MainCommands(commands.Cog, name="Основные команды"):
                                     name_of_currency=name_of_currency)
 
         try:
-            if ctx.guild.id == 569627056707600389:
-                img_profile = Image.open("stuff/profile_gorails.jpg")
-            else:
-                img_profile = Image.open("stuff/profile_sunrails.jpg")
+            img_profile = Image.open("stuff/profile_sunrails.jpg")
 
             fileRequest = requests.get(user_ctx.avatar_url)
             img_avatar = Image.open(BytesIO(fileRequest.content))

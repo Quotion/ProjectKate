@@ -154,7 +154,7 @@ class Status(commands.Cog, name="Статус серверов"):
                         ply[i] = f"{i + 1}. {member.mention} | **{time}**"
                     elif SID is not None:
                         ply[i] = f"{i + 1}. [{player['name']}]({link}) | **{time}**"
-                    elif SID is None and player["name"] is not '':
+                    elif SID is None and player["name"] != '':
                         ply[i] = f"{i + 1}. [{player['name']}]({link}) | `ДАННЫЕ ОТСУТСТВУЮТ`"
 
                 title = discord.Embed(colour=discord.Colour.dark_green(),
