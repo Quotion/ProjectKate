@@ -532,7 +532,7 @@ class Advert(commands.Cog, name="Объявления"):
         elif main_values['values'][0][0] == 'Другое':
             embed = self.another()
 
-        message = await ctx.send(embed=embed)
+        message = await ctx.send(content="||@everyone||", embed=embed)
 
         if not is_multiplayer:
             return
