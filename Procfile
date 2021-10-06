@@ -1,1 +1,0 @@
-katherine: python main.py
